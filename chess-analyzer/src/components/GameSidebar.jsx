@@ -10,15 +10,15 @@ export default function GameSidebar({
     isPracticeMode,
     onTogglePractice,
     onUndo,
-    startFen
+    startFen,
+    activeTheme
 }) {
     const { status, result } = engineState;
     const displayMoves = history.map(m => m.san);
 
     return (
-        <aside style={{ width: '300px', background: '#0f1117', padding: '1rem', borderRadius: '8px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <aside style={{ width: '300px', background: activeTheme.global.surface, padding: '1rem', borderRadius: '8px', border: `1px solid ${activeTheme.global.border}`, display: 'flex', flexDirection: 'column', gap: '1.5rem', transition: 'all 0.3s ease' }}>
 
-            {/* ── PRACTICE MODE CONTROLS ── */}
             <div style={{ display: 'flex', gap: '0.5rem', flexDirection: 'column' }}>
                 <button
                     onClick={onTogglePractice}
@@ -32,14 +32,13 @@ export default function GameSidebar({
                     {isPracticeMode ? '🛑 Stop Practice' : '🎯 Practice vs Coach'}
                 </button>
 
-                {/* NEW UNDO BUTTON */}
                 {isPracticeMode && (
                     <button
                         onClick={onUndo}
                         style={{
                             width: '100%', padding: '0.75rem', fontSize: '0.9rem', fontWeight: 'bold',
-                            background: '#334155', color: '#f8fafc',
-                            border: '1px solid #475569', borderRadius: '8px', cursor: 'pointer',
+                            background: activeTheme.global.bg, color: activeTheme.global.text,
+                            border: `1px solid ${activeTheme.global.border}`, borderRadius: '8px', cursor: 'pointer',
                             transition: 'all 0.2s',
                         }}
                     >
@@ -63,11 +62,11 @@ export default function GameSidebar({
             </div>
 
             {result?.bestMove && !isPracticeMode && (
-                <div style={{ background: '#1e293b', padding: '1rem', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase' }}>Best Move</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#60a5fa' }}>{result.bestMove}</div>
+                <div style={{ background: activeTheme.global.bg, padding: '1rem', borderRadius: '8px', border: `1px solid ${activeTheme.global.border}` }}>
+                    <div style={{ fontSize: '0.8rem', color: activeTheme.global.text, opacity: 0.7, textTransform: 'uppercase' }}>Best Move</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: activeTheme.global.accent }}>{result.bestMove}</div>
                     {result.pv && (
-                        <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                        <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: activeTheme.global.text, opacity: 0.8 }}>
                             <strong>Line (d{result.depth}):</strong> {result.pv.slice(0, 5).join(' ')}...
                         </div>
                     )}
@@ -75,7 +74,7 @@ export default function GameSidebar({
             )}
 
             <div style={{ flex: 1, overflowY: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Move History</div>
+                <div style={{ fontSize: '0.8rem', color: activeTheme.global.text, opacity: 0.7, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Move History</div>
                 <MoveHistory moves={displayMoves} currentMoveIndex={currentMoveIndex} onMoveClick={onMoveClick} />
             </div>
         </aside>

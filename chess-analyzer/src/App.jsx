@@ -6,9 +6,40 @@ import EvalBar from './components/EvalBar';
 import GameSidebar from './components/GameSidebar';
 import { fetchUserGames } from './services/chessApi';
 
+// ── 1. EXPLICIT IMPORTS FOR IMAGES (Fixes missing pieces) ──
+import wP_wiz from './assets/pieces/wizard/wP.png';
+import wN_wiz from './assets/pieces/wizard/wN.png';
+import wB_wiz from './assets/pieces/wizard/wB.png';
+import wR_wiz from './assets/pieces/wizard/wR.png';
+import wQ_wiz from './assets/pieces/wizard/wQ.png';
+import wK_wiz from './assets/pieces/wizard/wK.png';
+import bP_wiz from './assets/pieces/wizard/bP.png';
+import bN_wiz from './assets/pieces/wizard/bN.png';
+import bB_wiz from './assets/pieces/wizard/bB.png';
+import bR_wiz from './assets/pieces/wizard/bR.png';
+import bQ_wiz from './assets/pieces/wizard/bQ.png';
+import bK_wiz from './assets/pieces/wizard/bK.png';
+
 const STD_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
+// ── 2. THEME CONFIGURATION ──
+const THEMES = {
+    classic: {
+        name: 'Classic Standard',
+        board: { light: '#ebecd0', dark: '#739552' },
+        global: { bg: '#0b0f19', surface: '#1e293b', text: '#ffffff', accent: '#3b82f6', border: '#334155' },
+        pieces: 'standard'
+    },
+    wizard: {
+        name: 'Harry Potter (Wizard)',
+        board: { light: '#a8a29e', dark: '#44403c' },
+        global: { bg: '#1c1917', surface: '#292524', text: '#e7e5e4', accent: '#d97706', border: '#44403c' },
+        pieces: 'wizard'
+    }
+};
+
 export default function App() {
+    // ── YOUR EXACT ORIGINAL STATE ──
     const [displayFen, setDisplayFen] = useState(STD_FEN);
     const [startFen, setStartFen] = useState(STD_FEN);
     const [history, setHistory] = useState([]);
@@ -23,8 +54,13 @@ export default function App() {
     const [fetchedGames, setFetchedGames] = useState([]);
     const [isFetching, setIsFetching] = useState(false);
 
+    // ── NEW THEME STATE ──
+    const [currentThemeKey, setCurrentThemeKey] = useState('classic');
+    const activeTheme = THEMES[currentThemeKey];
+
     const { engineState, analyzePosition, stopAnalysis } = useEngine();
 
+    // ── YOUR EXACT ORIGINAL USE-EFFECTS ──
     useEffect(() => {
         if (displayFen && (engineState.status === 'ready' || engineState.status === 'analysing')) {
             analyzePosition(displayFen, isPracticeMode ? 14 : 18);
@@ -82,18 +118,15 @@ export default function App() {
         }
     }, [isPracticeMode, engineState.status, engineState.result, displayFen, userPracticeColor, currentMoveIndex]);
 
-    // ── THE NEW UNDO FUNCTION ──
+    // ── YOUR EXACT ORIGINAL CALLBACKS ──
     const undoPracticeMove = useCallback(() => {
         if (!isPracticeMode) return;
-        clearTimeout(botTimerRef.current); // Stop the bot if it's thinking
+        clearTimeout(botTimerRef.current);
 
         setHistory(prev => {
             const currentFen = prev.length > 0 ? prev[prev.length - 1].fen : startFen;
             const temp = new Chess(currentFen);
             const isOurTurn = temp.turn() === userPracticeColor;
-
-            // If it's our turn, the bot just played. Undo the bot's move AND our move (drop 2).
-            // If it's the bot's turn, it's still thinking. Just undo our move (drop 1).
             const dropCount = isOurTurn ? 2 : 1;
 
             if (prev.length < dropCount) return prev;
@@ -127,12 +160,14 @@ export default function App() {
         return () => window.removeEventListener('keydown', onKey);
     }, [goToMove, isPracticeMode]);
 
-    const onDrop = useCallback(({ sourceSquare, targetSquare, piece }) => {
+    // v5: onPieceDrop receives { piece: { pieceType, ... }, sourceSquare, targetSquare }
+    const onDrop = useCallback(({ sourceSquare, targetSquare }) => {
+        if (!targetSquare) return false;
         try {
             const temp = new Chess(displayFen);
             if (isPracticeMode && temp.turn() !== userPracticeColor) return false;
 
-            const move = temp.move({ from: sourceSquare, to: targetSquare, promotion: piece?.[1]?.toLowerCase() ?? 'q' });
+            const move = temp.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
             if (!move) return false;
 
             const newFen = temp.fen();
@@ -176,9 +211,7 @@ export default function App() {
             setHistory(enrichedHistory);
             setCurrentMoveIndex(-1);
             setDisplayFen(baseFen);
-        } catch (err) {
-            alert('Failed to load this game.');
-        }
+        } catch (err) { alert('Failed to load this game.'); }
     }, [stopAnalysis]);
 
     const reset = useCallback(() => {
@@ -200,43 +233,94 @@ export default function App() {
         } catch (err) { alert(err.message); } finally { setIsFetching(false); }
     };
 
-    const bestMove = engineState.result?.bestMove;
-    const customArrows = bestMove && bestMove.length >= 4 && !isPracticeMode
-        ? [[bestMove.substring(0, 2), bestMove.substring(2, 4), 'rgba(79,142,255,0.8)']] : [];
+    // ── 3. STATIC CUSTOM PIECE COMPONENTS ──
+    // v5: piece render functions receive { fill, square, svgStyle } — no squareWidth
+    // Use width/height 100% so image fills the square naturally
+    const wizardPieceComponents = useMemo(() => {
+        const style = { width: '100%', height: '100%', objectFit: 'contain' };
+        return {
+            wP: () => <img src={wP_wiz} style={style} alt="wP" draggable={false} />,
+            wN: () => <img src={wN_wiz} style={style} alt="wN" draggable={false} />,
+            wB: () => <img src={wB_wiz} style={style} alt="wB" draggable={false} />,
+            wR: () => <img src={wR_wiz} style={style} alt="wR" draggable={false} />,
+            wQ: () => <img src={wQ_wiz} style={style} alt="wQ" draggable={false} />,
+            wK: () => <img src={wK_wiz} style={style} alt="wK" draggable={false} />,
+            bP: () => <img src={bP_wiz} style={style} alt="bP" draggable={false} />,
+            bN: () => <img src={bN_wiz} style={style} alt="bN" draggable={false} />,
+            bB: () => <img src={bB_wiz} style={style} alt="bB" draggable={false} />,
+            bR: () => <img src={bR_wiz} style={style} alt="bR" draggable={false} />,
+            bQ: () => <img src={bQ_wiz} style={style} alt="bQ" draggable={false} />,
+            bK: () => <img src={bK_wiz} style={style} alt="bK" draggable={false} />
+        };
+    }, []);
 
+    const bestMove = engineState.result?.bestMove;
+
+    // v5: arrows are { startSquare, endSquare, color } objects (NOT arrays)
+    const arrowList = bestMove && bestMove.length >= 4 && !isPracticeMode
+        ? [{ startSquare: bestMove.substring(0, 2), endSquare: bestMove.substring(2, 4), color: 'rgba(79,142,255,0.8)' }]
+        : [];
+
+    // ── 4. OPTIONS OBJECT — all prop names updated for react-chessboard v5 ──
     const boardOptions = {
         id: "analyzer-board",
         position: displayFen,
         onPieceDrop: onDrop,
         boardOrientation: boardOrientation,
-        customArrows: customArrows,
+        arrows: arrowList,                         // v5: was customArrows
         animationDurationInMs: 200,
-        arePiecesDraggable: isPracticeMode ? (new Chess(displayFen).turn() === userPracticeColor) : true,
-        customBoardStyle: { borderRadius: '4px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' },
-        customDarkSquareStyle: { backgroundColor: '#739552' },
-        customLightSquareStyle: { backgroundColor: '#ebecd0' }
+        showAnimations: true,                      // v5: must be explicitly enabled
+        allowDragging: isPracticeMode              // v5: was arePiecesDraggable
+            ? (new Chess(displayFen).turn() === userPracticeColor)
+            : true,
+        boardStyle: { borderRadius: '4px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }, // v5: was customBoardStyle
+        darkSquareStyle:  { backgroundColor: activeTheme.board.dark },                 // v5: was customDarkSquareStyle
+        lightSquareStyle: { backgroundColor: activeTheme.board.light },                // v5: was customLightSquareStyle
     };
 
+    // Inject Harry Potter pieces ONLY when wizard theme is active
+    // v5: prop is 'pieces' (was 'customPieces')
+    if (activeTheme.pieces === 'wizard') {
+        boardOptions.pieces = wizardPieceComponents;
+    }
+
     return (
-        <div style={{ minHeight: '100vh', background: '#0b0f19', color: '#fff', fontFamily: 'system-ui, sans-serif', padding: '1rem' }}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '1px solid #1e293b' }}>
-                <h2>♞ Chess Analyzer</h2>
+        <div style={{ minHeight: '100vh', background: activeTheme.global.bg, color: activeTheme.global.text, fontFamily: 'system-ui, sans-serif', padding: '1rem', transition: 'background 0.3s ease, color 0.3s ease' }}>
+
+            {/* ── HEADER WITH THEME SELECTOR ── */}
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: `1px solid ${activeTheme.global.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <h2 style={{ margin: 0 }}>♞ Chess Analyzer</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: activeTheme.global.surface, padding: '0.5rem 1rem', borderRadius: '8px', border: `1px solid ${activeTheme.global.border}` }}>
+                        <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: activeTheme.global.text, opacity: 0.8, fontWeight: 'bold' }}>Theme:</span>
+                        <select
+                            value={currentThemeKey}
+                            onChange={(e) => setCurrentThemeKey(e.target.value)}
+                            style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', outline: 'none', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold' }}
+                        >
+                            {Object.entries(THEMES).map(([key, theme]) => (
+                                <option key={key} value={key} style={{ background: '#1e293b' }}>{theme.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
                 <form onSubmit={handleFetch} style={{ display: 'flex', gap: '0.5rem' }}>
-                    <input type="text" placeholder="Chess.com Username" value={username} onChange={e => setUsername(e.target.value)} style={{ padding: '0.5rem', borderRadius: '4px', background: '#1e293b', border: '1px solid #334155', color: '#fff' }} />
-                    <button type="submit" disabled={isFetching} style={{ padding: '0.5rem 1rem', background: '#3b82f6', border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}>Fetch</button>
+                    <input type="text" placeholder="Chess.com Username" value={username} onChange={e => setUsername(e.target.value)} style={{ padding: '0.5rem', borderRadius: '4px', background: activeTheme.global.surface, border: `1px solid ${activeTheme.global.border}`, color: activeTheme.global.text }} />
+                    <button type="submit" disabled={isFetching} style={{ padding: '0.5rem 1rem', background: activeTheme.global.accent, border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}>Fetch</button>
                 </form>
                 <div>
-                    <button onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')} style={{ marginRight: '1rem', padding: '0.5rem', background: 'transparent', color: '#fff', border: '1px solid #334155', borderRadius: '4px', cursor: 'pointer' }}>Flip</button>
+                    <button onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')} style={{ marginRight: '1rem', padding: '0.5rem', background: 'transparent', color: activeTheme.global.text, border: `1px solid ${activeTheme.global.border}`, borderRadius: '4px', cursor: 'pointer' }}>Flip</button>
                     <button onClick={reset} style={{ padding: '0.5rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Reset</button>
                 </div>
             </header>
 
             <main style={{ display: 'flex', gap: '2rem', justifyContent: 'center', alignItems: 'flex-start' }}>
                 {fetchedGames.length > 0 && (
-                    <div style={{ width: '250px', maxHeight: '70vh', overflowY: 'auto', background: '#0f1117', padding: '1rem', borderRadius: '8px', border: '1px solid #1e293b' }}>
+                    <div style={{ width: '250px', maxHeight: '70vh', overflowY: 'auto', background: activeTheme.global.surface, padding: '1rem', borderRadius: '8px', border: `1px solid ${activeTheme.global.border}` }}>
                         <h3 style={{ marginTop: 0 }}>Games</h3>
                         {fetchedGames.map((g, i) => (
-                            <div key={i} onClick={() => loadGamePgn(g.pgn)} style={{ padding: '0.5rem', marginBottom: '0.5rem', background: '#1e293b', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                            <div key={i} onClick={() => loadGamePgn(g.pgn)} style={{ padding: '0.5rem', marginBottom: '0.5rem', background: activeTheme.global.bg, borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}>
                                 {g.pgn.match(/\[White "([^"]+)"\]/)?.[1]} vs {g.pgn.match(/\[Black "([^"]+)"\]/)?.[1]}
                             </div>
                         ))}
@@ -246,12 +330,15 @@ export default function App() {
                 <div style={{ display: 'flex', gap: '1rem', height: '600px' }}>
                     <EvalBar result={engineState.result} status={engineState.status} />
                     <div style={{ width: '600px', position: 'relative' }}>
+
+                        {/* ── YOUR EXACT COMPONENT RENDER STRUCTURE ── */}
                         <Chessboard options={boardOptions} />
+
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1rem', opacity: isPracticeMode ? 0.3 : 1, pointerEvents: isPracticeMode ? 'none' : 'auto' }}>
-                            <button onClick={() => goToMove(-1)}>⏮</button>
-                            <button onClick={() => goToMove(currentMoveIndex - 1)}>◀</button>
-                            <button onClick={() => goToMove(currentMoveIndex + 1)}>▶</button>
-                            <button onClick={() => goToMove(history.length - 1)}>⏭</button>
+                            <button onClick={() => goToMove(-1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>⏮</button>
+                            <button onClick={() => goToMove(currentMoveIndex - 1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>◀</button>
+                            <button onClick={() => goToMove(currentMoveIndex + 1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>▶</button>
+                            <button onClick={() => goToMove(history.length - 1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>⏭</button>
                         </div>
                     </div>
                 </div>
@@ -265,6 +352,7 @@ export default function App() {
                     onTogglePractice={togglePractice}
                     onUndo={undoPracticeMove}
                     startFen={startFen}
+                    activeTheme={activeTheme}
                 />
             </main>
         </div>
