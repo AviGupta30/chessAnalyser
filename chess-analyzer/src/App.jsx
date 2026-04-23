@@ -233,24 +233,26 @@ export default function App() {
         } catch (err) { alert(err.message); } finally { setIsFetching(false); }
     };
 
-    // ── 3. STATIC CUSTOM PIECE COMPONENTS ──
-    // v5: piece render functions receive { fill, square, svgStyle } — no squareWidth
-    // Use width/height 100% so image fills the square naturally
+    // ── 3. WIZARD PIECE COMPONENTS ──
+    // Use width:100% + aspect-ratio:1/1 so the div derives its height from width
+    // automatically — no height:100% needed (which resolves to 0 in flex chains).
+    // background-size:contain shows the full portrait piece image without clipping.
     const wizardPieceComponents = useMemo(() => {
-        const style = { width: '100%', height: '100%', objectFit: 'contain' };
+        const pieceDiv = (src) => () => (
+            <div style={{
+                width: '100%',
+                aspectRatio: '1 / 1',
+                backgroundImage: `url(${src})`,
+                backgroundSize: 'contain',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center',
+            }} />
+        );
         return {
-            wP: () => <img src={wP_wiz} style={style} alt="wP" draggable={false} />,
-            wN: () => <img src={wN_wiz} style={style} alt="wN" draggable={false} />,
-            wB: () => <img src={wB_wiz} style={style} alt="wB" draggable={false} />,
-            wR: () => <img src={wR_wiz} style={style} alt="wR" draggable={false} />,
-            wQ: () => <img src={wQ_wiz} style={style} alt="wQ" draggable={false} />,
-            wK: () => <img src={wK_wiz} style={style} alt="wK" draggable={false} />,
-            bP: () => <img src={bP_wiz} style={style} alt="bP" draggable={false} />,
-            bN: () => <img src={bN_wiz} style={style} alt="bN" draggable={false} />,
-            bB: () => <img src={bB_wiz} style={style} alt="bB" draggable={false} />,
-            bR: () => <img src={bR_wiz} style={style} alt="bR" draggable={false} />,
-            bQ: () => <img src={bQ_wiz} style={style} alt="bQ" draggable={false} />,
-            bK: () => <img src={bK_wiz} style={style} alt="bK" draggable={false} />
+            wP: pieceDiv(wP_wiz), wN: pieceDiv(wN_wiz), wB: pieceDiv(wB_wiz),
+            wR: pieceDiv(wR_wiz), wQ: pieceDiv(wQ_wiz), wK: pieceDiv(wK_wiz),
+            bP: pieceDiv(bP_wiz), bN: pieceDiv(bN_wiz), bB: pieceDiv(bB_wiz),
+            bR: pieceDiv(bR_wiz), bQ: pieceDiv(bQ_wiz), bK: pieceDiv(bK_wiz),
         };
     }, []);
 
