@@ -1,5 +1,5 @@
 import { Chess } from 'chess.js';
-import AbsorptionState from './stateManager';
+import AbsorptionState from './stateManager.js';
 
 class AbsorptionEngine {
   constructor(fen = undefined) {
@@ -40,7 +40,15 @@ class AbsorptionEngine {
   }
 
   isGameOver() {
-    return this.chess.isGameOver();
+    return this.isCheckmate() || this.isStalemate() || this.chess.isInsufficientMaterial() || this.chess.isThreefoldRepetition() || this.chess.isDraw();
+  }
+
+  isCheckmate() {
+    return this.moves().length === 0 && this.isKingInCheck(this.chess.turn());
+  }
+
+  isStalemate() {
+    return this.moves().length === 0 && !this.isKingInCheck(this.chess.turn());
   }
 
   get(square) {
@@ -65,7 +73,7 @@ class AbsorptionEngine {
 
   _restore(snapshot) {
     this.chess.load(snapshot.fen);
-    this.absorptionState = snapshot.caps;
+    this.absorptionState = snapshot.caps.clone();
   }
 
   /**
@@ -99,9 +107,7 @@ class AbsorptionEngine {
       const typeMoves = clone.moves({ square, verbose: true });
 
       for (const move of typeMoves) {
-        // Never "capture" kings (safety net)
-        const targetPiece = this.chess.get(move.to);
-        if (targetPiece && targetPiece.type === 'k') continue;
+        // (Removed king capture safety net so that isKingInCheck can detect attacks on the king)
 
         // Skip castling moves — absorbed rook cannot grant castling rights
         if (move.flags && (move.flags.includes('k') || move.flags.includes('q'))) {
@@ -242,6 +248,10 @@ class AbsorptionEngine {
     const snapshot = this._snapshot();
 
     for (const move of pseudoMoves) {
+      // Prevent capturing the king as a valid move (since we removed this from pseudo moves)
+      const targetPiece = this.chess.get(move.to);
+      if (targetPiece && targetPiece.type === 'k') continue;
+
       const result = this.executeMoveSilently(square, move.to, move.promotion || 'q');
 
       if (result !== false) {

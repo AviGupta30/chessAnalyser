@@ -118,14 +118,28 @@ export default function AnalyzerGame({
     }, [currentMoveIndex, gameMode, history]);
 
     const gameStatus = useMemo(() => {
-        const chess = new Chess(displayFen);
-        if (chess.isCheckmate()) return 'Checkmate!';
-        if (chess.isStalemate()) return 'Stalemate!';
-        if (chess.isInsufficientMaterial()) return 'Draw by Insufficient Material';
-        if (chess.isThreefoldRepetition()) return 'Draw by Repetition';
-        if (chess.isDraw()) return 'Draw!';
-        return null;
-    }, [displayFen]);
+        if (gameMode === 'absorption') {
+            const eng = absorptionEngineRef.current;
+            const caps = currentMoveIndex >= 0 && history[currentMoveIndex]
+                ? (history[currentMoveIndex].capabilities || {})
+                : {};
+            eng.load(displayFen, caps);
+            if (eng.isCheckmate()) return 'Checkmate!';
+            if (eng.isStalemate()) return 'Stalemate!';
+            if (eng.chess.isInsufficientMaterial()) return 'Draw by Insufficient Material';
+            if (eng.chess.isThreefoldRepetition()) return 'Draw by Repetition';
+            if (eng.chess.isDraw()) return 'Draw!';
+            return null;
+        } else {
+            const chess = new Chess(displayFen);
+            if (chess.isCheckmate()) return 'Checkmate!';
+            if (chess.isStalemate()) return 'Stalemate!';
+            if (chess.isInsufficientMaterial()) return 'Draw by Insufficient Material';
+            if (chess.isThreefoldRepetition()) return 'Draw by Repetition';
+            if (chess.isDraw()) return 'Draw!';
+            return null;
+        }
+    }, [displayFen, gameMode, currentMoveIndex, history]);
 
     useEffect(() => {
         if (gameMode === 'standard' && displayFen && (engineState.status === 'ready' || engineState.status === 'analysing')) {
