@@ -79,7 +79,6 @@ const getMoveClassification = (delta, moveSan, missedMoveSan, isSacrifice) => {
 
 export default function AnalyzerGame({
     activeTheme,
-    wizardPieceComponents,
     wizardImages,
     gameMode,
     fetchedGames,
@@ -116,6 +115,66 @@ export default function AnalyzerGame({
             setAbsorptionCapabilities({});
         }
     }, [currentMoveIndex, gameMode, history]);
+
+    const dynamicWizardPieces = useMemo(() => {
+        const buildPieceComponent = (basePiece) => ({ square }) => {
+            let src = wizardImages[basePiece];
+            if (gameMode === 'absorption' && absorptionCapabilities[square]) {
+                const caps = absorptionCapabilities[square];
+                const color = basePiece[0]; // 'w' or 'b'
+                const type = basePiece[1]; // 'P', 'N', 'B', 'R', 'Q', 'K'
+                
+                const allTypes = [...caps, type.toLowerCase()];
+                const hasP = allTypes.includes('p');
+                const hasR = allTypes.includes('r');
+                const hasB = allTypes.includes('b');
+                const hasN = allTypes.includes('n');
+                const hasQ = allTypes.includes('q');
+                
+                const effectiveR = hasR || hasQ;
+                const effectiveB = hasB || hasQ;
+                const effectiveN = hasN;
+                
+                let keySuffix = null;
+                if (effectiveR && effectiveB && effectiveN) {
+                    keySuffix = 'Q_N';
+                } else if (effectiveR && effectiveB) {
+                    keySuffix = 'Q';
+                } else if (hasP) {
+                    if (effectiveR && effectiveN) keySuffix = 'P_N_R';
+                    else if (effectiveB && effectiveN) keySuffix = 'P_B_N';
+                    else if (effectiveR) keySuffix = 'P_R';
+                    else if (effectiveB) keySuffix = 'P_B';
+                    else if (effectiveN) keySuffix = 'P_N';
+                } else {
+                    if (effectiveR && effectiveN) keySuffix = 'R_N';
+                    else if (effectiveB && effectiveN) keySuffix = 'B_N';
+                }
+
+                if (keySuffix) {
+                    src = wizardImages[`${color}${keySuffix}`] || src;
+                }
+            }
+            
+            return (
+                <div style={{ 
+                    width: '100%', 
+                    aspectRatio: '1 / 1', 
+                    backgroundImage: `url(${src})`, 
+                    backgroundSize: 'contain', 
+                    backgroundRepeat: 'no-repeat', 
+                    backgroundPosition: 'center' 
+                }} />
+            );
+        };
+
+        return {
+            wP: buildPieceComponent('wP'), wN: buildPieceComponent('wN'), wB: buildPieceComponent('wB'),
+            wR: buildPieceComponent('wR'), wQ: buildPieceComponent('wQ'), wK: buildPieceComponent('wK'),
+            bP: buildPieceComponent('bP'), bN: buildPieceComponent('bN'), bB: buildPieceComponent('bB'),
+            bR: buildPieceComponent('bR'), bQ: buildPieceComponent('bQ'), bK: buildPieceComponent('bK'),
+        };
+    }, [wizardImages, gameMode, absorptionCapabilities]);
 
     const gameStatus = useMemo(() => {
         if (gameMode === 'absorption') {
@@ -180,7 +239,7 @@ export default function AnalyzerGame({
                             const m = temp.move({
                                 from: missedMoveUci.substring(0, 2),
                                 to: missedMoveUci.substring(2, 4),
-                                promotion: missedMoveUci.length === 5 ? missedMoveUci[4] : 'q'
+                                promotion: missedMoveUci.length === 5 ? missedMoveUci[4] : undefined
                             });
                             if (m) missedMoveSan = m.san;
                         } catch (e) { console.error(e); }
@@ -332,10 +391,11 @@ export default function AnalyzerGame({
             let isPromotion = false;
 
             if (gameMode === 'absorption') {
+                const actualPiece = temp.get(sourceSquare);
                 possibleMoves = temp.getLegalMoves(sourceSquare);
                 isPromotion = possibleMoves.some(
                     m => m.to === targetSquare &&
-                    m.piece === 'p' &&
+                    actualPiece && actualPiece.type === 'p' &&
                     (targetSquare[1] === '8' || targetSquare[1] === '1')
                 );
             } else {
@@ -361,7 +421,7 @@ export default function AnalyzerGame({
 
             // Re-sync before actually executing so we work on a clean state
             const temp2 = getActiveEngine();
-            const move = temp2.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
+            const move = temp2.move({ from: sourceSquare, to: targetSquare });
 
             if (!move) {
                 flashInvalidMove(sourceSquare, targetSquare);
@@ -610,7 +670,7 @@ export default function AnalyzerGame({
     };
 
     if (activeTheme.pieces === 'wizard') {
-        boardOptions.pieces = wizardPieceComponents;
+        boardOptions.pieces = dynamicWizardPieces;
     }
 
     return (

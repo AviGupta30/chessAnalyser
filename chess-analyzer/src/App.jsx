@@ -18,6 +18,23 @@ import bR_wiz from './assets/pieces/wizard/bR.png';
 import bQ_wiz from './assets/pieces/wizard/bQ.png';
 import bK_wiz from './assets/pieces/wizard/bK.png';
 
+import bB_N_wiz from './assets/pieces/wizard/evolutions/bB_N.png';
+import bP_B_N_wiz from './assets/pieces/wizard/evolutions/bP_B_N.png';
+import bP_B_wiz from './assets/pieces/wizard/evolutions/bP_B.png';
+import bP_N_R_wiz from './assets/pieces/wizard/evolutions/bP_N_R.png';
+import bP_N_wiz from './assets/pieces/wizard/evolutions/bP_N.png';
+import bP_R_wiz from './assets/pieces/wizard/evolutions/bP_R.png';
+import bQ_N_wiz from './assets/pieces/wizard/evolutions/bQ_N.png';
+import bR_N_wiz from './assets/pieces/wizard/evolutions/bR_N.png';
+import wB_N_wiz from './assets/pieces/wizard/evolutions/wB_N.png';
+import wP_B_N_wiz from './assets/pieces/wizard/evolutions/wP_B_N.png';
+import wP_B_wiz from './assets/pieces/wizard/evolutions/wP_B.png';
+import wP_N_R_wiz from './assets/pieces/wizard/evolutions/wP_N_R.png';
+import wP_N_wiz from './assets/pieces/wizard/evolutions/wP_N.png';
+import wP_R_wiz from './assets/pieces/wizard/evolutions/wP_R.png';
+import wQ_N_wiz from './assets/pieces/wizard/evolutions/wQ_N.png';
+import wR_N_wiz from './assets/pieces/wizard/evolutions/wR_N.png';
+
 const THEMES = {
     classic: {
         name: 'Classic Standard',
@@ -35,7 +52,9 @@ const THEMES = {
 
 const WIZARD_IMAGES = {
     wP: wP_wiz, wN: wN_wiz, wB: wB_wiz, wR: wR_wiz, wQ: wQ_wiz, wK: wK_wiz,
-    bP: bP_wiz, bN: bN_wiz, bB: bB_wiz, bR: bR_wiz, bQ: bQ_wiz, bK: bK_wiz
+    bP: bP_wiz, bN: bN_wiz, bB: bB_wiz, bR: bR_wiz, bQ: bQ_wiz, bK: bK_wiz,
+    bB_N: bB_N_wiz, bP_B_N: bP_B_N_wiz, bP_B: bP_B_wiz, bP_N_R: bP_N_R_wiz, bP_N: bP_N_wiz, bP_R: bP_R_wiz, bQ_N: bQ_N_wiz, bR_N: bR_N_wiz,
+    wB_N: wB_N_wiz, wP_B_N: wP_B_N_wiz, wP_B: wP_B_wiz, wP_N_R: wP_N_R_wiz, wP_N: wP_N_wiz, wP_R: wP_R_wiz, wQ_N: wQ_N_wiz, wR_N: wR_N_wiz
 };
 
 export default function App() {

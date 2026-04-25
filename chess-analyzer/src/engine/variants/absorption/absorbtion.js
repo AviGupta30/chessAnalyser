@@ -89,9 +89,28 @@ class AbsorptionEngine {
     // The piece's own type + all absorbed types
     const uniqueTypes = [...new Set([pieceInfo.type, ...pieceInfo.capabilities])];
 
+    let tempChess = new Chess(this.chess.fen());
+    if (forceTurnColor) {
+      // When checking attacks (isKingInCheck), we must prevent our own King from being in check,
+      // otherwise chess.js will filter out our attacks. We do this by replacing all opponent pieces
+      // (except their king) with our own knights, which preserves blocking logic but removes their attacks.
+      const oppColor = forceTurnColor === 'w' ? 'b' : 'w';
+      const board = tempChess.board();
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const p = board[r][c];
+          if (p && p.color === oppColor && p.type !== 'k') {
+            const sq = 'abcdefgh'[c] + (8 - r);
+            tempChess.remove(sq);
+            tempChess.put({ type: 'n', color: forceTurnColor }, sq);
+          }
+        }
+      }
+    }
+
     // Build a working FEN, optionally spoofing the turn colour
-    let workingFen = this.chess.fen();
-    if (forceTurnColor && this.chess.turn() !== forceTurnColor) {
+    let workingFen = tempChess.fen();
+    if (forceTurnColor && tempChess.turn() !== forceTurnColor) {
       const tokens = workingFen.split(' ');
       tokens[1] = forceTurnColor;
       tokens[2] = '-'; // no castling rights in spoof
@@ -100,8 +119,14 @@ class AbsorptionEngine {
     }
 
     for (const type of uniqueTypes) {
+      // Pawns cannot exist on 1st or 8th rank — chess.js will crash with a BigInt error if we try to generate moves for them
+      if (type === 'p' && (square[1] === '1' || square[1] === '8')) {
+        continue;
+      }
+
       // Clone, place the spoofed piece, ask chess.js for its moves
       const clone = new Chess(workingFen);
+      clone.remove(square);
       clone.put({ type, color: pieceInfo.color }, square);
 
       const typeMoves = clone.moves({ square, verbose: true });
@@ -188,7 +213,13 @@ class AbsorptionEngine {
     let usedPromotion = null;
 
     for (const spoofType of uniqueTypes) {
+      // Pawns cannot move from 1st or 8th rank — chess.js will crash
+      if (spoofType === 'p' && (from[1] === '1' || from[1] === '8')) {
+        continue;
+      }
+
       // Put the spoofed piece (chess.js will now recognise its move pattern)
+      this.chess.remove(from);
       this.chess.put({ type: spoofType, color: movingPiece.color }, from);
 
       try {
