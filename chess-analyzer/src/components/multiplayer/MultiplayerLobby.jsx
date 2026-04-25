@@ -31,6 +31,7 @@ const COLOR_OPTIONS = [
 export default function MultiplayerLobby({ onCreateGame, onJoinGame, isLoading, error, theme }) {
     const [view, setView] = useState('menu');         // menu | create | join
     const [selectedColor, setSelectedColor] = useState('random');
+    const [selectedVariant, setSelectedVariant] = useState('standard');
     const [joinCode, setJoinCode] = useState('');
 
     const bg = theme?.global?.bg || '#0b0f19';
@@ -139,6 +140,39 @@ export default function MultiplayerLobby({ onCreateGame, onJoinGame, isLoading, 
                             </div>
                         </div>
 
+                        {/* Variant Picker */}
+                        <div style={{ marginBottom: '2rem' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: text, opacity: 0.5, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.75rem' }}>
+                                Game Variant
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+                                <button
+                                    onClick={() => setSelectedVariant('standard')}
+                                    style={{
+                                        ...btnBase,
+                                        padding: '0.75rem',
+                                        background: selectedVariant === 'standard' ? `linear-gradient(135deg, ${accent}33, ${accent}11)` : 'rgba(255,255,255,0.04)',
+                                        border: `2px solid ${selectedVariant === 'standard' ? accent : border}`,
+                                        color: text,
+                                    }}
+                                >
+                                    Standard
+                                </button>
+                                <button
+                                    onClick={() => setSelectedVariant('absorption')}
+                                    style={{
+                                        ...btnBase,
+                                        padding: '0.75rem',
+                                        background: selectedVariant === 'absorption' ? `linear-gradient(135deg, ${accent}33, ${accent}11)` : 'rgba(255,255,255,0.04)',
+                                        border: `2px solid ${selectedVariant === 'absorption' ? accent : border}`,
+                                        color: text,
+                                    }}
+                                >
+                                    Absorption
+                                </button>
+                            </div>
+                        </div>
+
                         {error && (
                             <div style={{ background: '#ef444422', border: '1px solid #ef4444', borderRadius: '8px', padding: '0.75rem 1rem', color: '#fca5a5', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                                 {error}
@@ -147,7 +181,7 @@ export default function MultiplayerLobby({ onCreateGame, onJoinGame, isLoading, 
 
                         <button
                             id="btn-confirm-create"
-                            onClick={() => onCreateGame(selectedColor)}
+                            onClick={() => onCreateGame(selectedColor, selectedVariant)}
                             disabled={isLoading}
                             style={{ ...btnBase, width: '100%', padding: '1rem', background: `linear-gradient(135deg, ${accent}, #6366f1)`, color: '#fff', boxShadow: `0 4px 24px ${accent}44`, opacity: isLoading ? 0.6 : 1 }}
                         >

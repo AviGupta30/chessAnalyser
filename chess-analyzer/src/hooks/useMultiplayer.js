@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { supabase } from '../lib/supabase';
+import AbsorptionEngine from '../engine/variants/absorption/absorbtion';
 
 const STD_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -24,15 +25,23 @@ const getPlayerId = () => {
 
 const checkGameOver = (currentFen) => {
     try {
-        const chess = new Chess(currentFen);
+        const [fen, mode, capsStr] = (currentFen || '').split('|');
+        let chess;
+        if (mode === 'absorption') {
+            chess = new AbsorptionEngine();
+            chess.load(fen, capsStr ? JSON.parse(capsStr) : {});
+        } else {
+            chess = new Chess(fen || currentFen);
+        }
+
         if (chess.isCheckmate()) {
             const winner = chess.turn() === 'w' ? 'Black' : 'White';
-            return `♛ Checkmate! ${winner} wins!`;
+            return `🏆 Checkmate! ${winner} wins!`;
         }
-        if (chess.isStalemate())            return "🤝 Stalemate — it's a draw!";
-        if (chess.isInsufficientMaterial()) return '🤝 Draw by insufficient material!';
-        if (chess.isThreefoldRepetition())  return '🤝 Draw by threefold repetition!';
-        if (chess.isDraw())                 return '🤝 Draw!';
+        if (chess.isStalemate())            return "⚖️ Stalemate — it's a draw!";
+        if ((chess.isInsufficientMaterial && chess.isInsufficientMaterial()) || (chess.chess && chess.chess.isInsufficientMaterial())) return '⚖️ Draw by insufficient material!';
+        if ((chess.isThreefoldRepetition && chess.isThreefoldRepetition()) || (chess.chess && chess.chess.isThreefoldRepetition()))  return '⚖️ Draw by threefold repetition!';
+        if ((chess.isDraw && chess.isDraw()) || (chess.chess && chess.chess.isDraw()))                 return '⚖️ Draw!';
     } catch (e) { /* ignore invalid FEN */ }
     return null;
 };
@@ -170,10 +179,10 @@ export function useMultiplayer() {
     }, []);
 
     // ── CREATE GAME ──────────────────────────────────────────────────────────
-    const createGame = useCallback(async (chosenColor) => {
+    const createGame = useCallback(async (chosenColor, mode = 'standard') => {
         setIsLoading(true);
         setError(null);
-        console.log('[MP] Creating game, color:', chosenColor);
+        console.log('[MP] Creating game, color:', chosenColor, 'mode:', mode);
 
         try {
             const code = generateGameCode();
@@ -181,9 +190,11 @@ export function useMultiplayer() {
                 ? (Math.random() < 0.5 ? 'white' : 'black')
                 : chosenColor;
 
+            const initialFen = `${STD_FEN}|${mode}|{}`;
+
             const payload = {
                 game_code: code,
-                fen: STD_FEN,
+                fen: initialFen,
                 status: 'waiting',
                 white_player_id: actualColor === 'white' ? myIdRef.current : null,
                 black_player_id: actualColor === 'black' ? myIdRef.current : null,
@@ -207,7 +218,7 @@ export function useMultiplayer() {
 
             setGameCode(code);
             setMyColor(actualColor);
-            setFen(STD_FEN);
+            setFen(initialFen);
             setPhase('waiting');       // ← triggers WaitingRoom (now correctly routed)
             setIsLoading(false);
 
@@ -272,7 +283,7 @@ export function useMultiplayer() {
 
             setGameCode(upperCode);
             setMyColor(joinColor);
-            setFen(room.fen || STD_FEN);
+            setFen(room.fen || `${STD_FEN}|standard|{}`);
             setOpponentConnected(true);
             setPhase('playing');
             setIsLoading(false);
@@ -349,7 +360,7 @@ export function useMultiplayer() {
         setPhase('lobby');
         setMyColor(null);
         setGameCode('');
-        setFen(STD_FEN);
+        setFen(`${STD_FEN}|standard|{}`);
         setGameOverMessage(null);
         setOpponentConnected(false);
         setError(null);

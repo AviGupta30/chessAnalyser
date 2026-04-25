@@ -1,12 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
+import AbsorptionEngine from '../../engine/variants/absorption/absorbtion';
 
 const STD_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const FILES = ['a','b','c','d','e','f','g','h'];
 
-function findKingSquare(chess, color) {
-    const board = chess.board();
+function getEngine(localFen) {
+    const [fen, mode, capsStr] = (localFen || '').split('|');
+    if (mode === 'absorption') {
+        const eng = new AbsorptionEngine();
+        eng.load(fen, capsStr ? JSON.parse(capsStr) : {});
+        return { eng, isAbsorption: true, baseFen: fen, mode, caps: capsStr ? JSON.parse(capsStr) : {} };
+    } else {
+        const eng = new Chess();
+        try { eng.load(fen || STD_FEN); } catch {}
+        return { eng, isAbsorption: false, baseFen: eng.fen(), mode: 'standard', caps: {} };
+    }
+}
+
+function findKingSquare(chessObj, color) {
+    const board = typeof chessObj.board === 'function' ? chessObj.board() : chessObj.chess.board();
     for (let r = 0; r < 8; r++)
         for (let c = 0; c < 8; c++) {
             const p = board[r][c];
@@ -59,7 +73,7 @@ function GameOverOverlay({ message, onLeave, theme }) {
 
 // ── Promotion ─────────────────────────────────────────────────────────────────
 const UNI = { wQ:'♕', wR:'♖', wB:'♗', wN:'♘', bQ:'♛', bR:'♜', bB:'♝', bN:'♞' };
-function PromotionDialog({ pm, onPromote, onCancel, theme, wizPieces }) {
+function PromotionDialog({ pm, onPromote, onCancel, theme, wizardImages }) {
     const t = theme?.global || {};
     return (
         <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,.65)', zIndex:20, display:'flex', justifyContent:'center', alignItems:'center', borderRadius:'4px' }}>
@@ -68,10 +82,10 @@ function PromotionDialog({ pm, onPromote, onCancel, theme, wizPieces }) {
                 <div style={{ display:'flex', gap:'1rem', justifyContent:'center' }}>
                     {['q','r','b','n'].map(p => {
                         const pk = `${pm.color}${p.toUpperCase()}`;
-                        const Comp = wizPieces?.[pk];
+                        const src = wizardImages?.[pk];
                         return (
                             <div key={p} onClick={() => onPromote(p)} style={{ width:'70px', height:'70px', cursor:'pointer', background: theme?.board?.light||'#ebecd0', borderRadius:'8px', display:'flex', justifyContent:'center', alignItems:'center', border:`2px solid ${t.border||'#334155'}` }}>
-                                {Comp ? <Comp /> : <span style={{ fontSize:'3rem', color:'#000' }}>{UNI[pk]}</span>}
+                                {src ? <div style={{width:'80%', height:'80%', backgroundImage:`url(${src})`, backgroundSize:'contain', backgroundRepeat:'no-repeat', backgroundPosition:'center'}} /> : <span style={{ fontSize:'3rem', color:'#000' }}>{UNI[pk]}</span>}
                             </div>
                         );
                     })}
@@ -95,7 +109,7 @@ function PlayerBanner({ color, isMyTurn, myColor, theme }) {
 }
 
 // ── Main Game ─────────────────────────────────────────────────────────────────
-export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase, gameOverMessage, sendMove, resign, leaveGame, theme, wizardPieceComponents }) {
+export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase, gameOverMessage, sendMove, resign, leaveGame, theme, wizardImages }) {
     const t = theme?.global || {};
 
     // Local FEN — instant updates, no prop roundtrip
@@ -115,18 +129,21 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
     };
 
     // Derived state
-    let chess;
-    try { chess = new Chess(localFen); } catch { chess = new Chess(); }
+    const { eng: chess, isAbsorption, baseFen, mode, caps: absorptionCapabilities } = useMemo(() => getEngine(localFen), [localFen]);
     const myChessColor = myColor === 'white' ? 'w' : 'b';
     const isMyTurn = chess.turn() === myChessColor;
-    const inCheck = chess.inCheck();
+    const inCheck = chess.inCheck ? chess.inCheck() : chess.isKingInCheck(chess.turn());
     const kingSquare = inCheck ? findKingSquare(chess, chess.turn()) : null;
 
     // Valid target dots for selected piece
     let validTargets = new Set();
     if (moveFrom && isMyTurn) {
         try {
-            chess.moves({ square: moveFrom, verbose: true }).forEach(m => validTargets.add(m.to));
+            if (isAbsorption) {
+                chess.getLegalMoves(moveFrom).forEach(m => validTargets.add(m.to));
+            } else {
+                chess.moves({ square: moveFrom, verbose: true }).forEach(m => validTargets.add(m.to));
+            }
         } catch {}
     }
 
@@ -134,27 +151,42 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
     const tryMove = (from, to) => {
         if (!from || !to || from === to) return false;
         try {
-            const c = new Chess(localFen);
-            // Check promotion
-            const prom = c.moves({ square: from, verbose: true }).some(m => m.to === to && m.flags.includes('p'));
-            if (prom) {
+            const { eng: c, isAbsorption: isAbs, mode: cMode } = getEngine(localFen);
+            
+            let isProm = false;
+            if (isAbs) {
+                const p = c.get(from);
+                isProm = p && p.type === 'p' && c.getLegalMoves(from).some(m => m.to === to && (to[1] === '8' || to[1] === '1'));
+            } else {
+                isProm = c.moves({ square: from, verbose: true }).some(m => m.to === to && m.flags.includes('p'));
+            }
+
+            if (isProm) {
                 c.move({ from, to, promotion: 'q' }); // validate it works
-                c.undo();
                 setPromotionMove({ from, to, color: c.turn() });
                 setMoveFrom('');
                 return true;
             }
+            
             // Normal move
             const move = c.move({ from, to, promotion: 'q' });
             if (!move) throw new Error('invalid');
-            const newFen = c.fen();
-            setLocalFen(newFen);
-            sendMove(newFen);
+            
+            const newBaseFen = c.fen();
+            const newCaps = isAbs ? c.absorptionState.capabilities : {};
+            const serializedFen = `${newBaseFen}|${cMode}|${JSON.stringify(newCaps)}`;
+            
+            setLocalFen(serializedFen);
+            sendMove(serializedFen);
             setMoveFrom('');
             return true;
         } catch {
             const toFlash = [to];
-            try { const c2 = new Chess(localFen); if (c2.inCheck()) toFlash.push(findKingSquare(c2, c2.turn())); } catch {}
+            try { 
+                const { eng: c2 } = getEngine(localFen); 
+                const isChk = c2.inCheck ? c2.inCheck() : c2.isKingInCheck(c2.turn());
+                if (isChk) toFlash.push(findKingSquare(c2, c2.turn())); 
+            } catch {}
             flashInvalid(toFlash);
             setMoveFrom('');
             return false;
@@ -162,16 +194,16 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
     };
 
     // ── Drag & drop (mirrors analyzer exactly) ────────────────────────────────
-    const onDrop = ({ sourceSquare, targetSquare }) => {
+    const onDrop = ({ sourceSquare, targetSquare } = {}) => {
         if (!isMyTurn || !targetSquare || sourceSquare === targetSquare) return false;
         setMoveFrom('');
         return tryMove(sourceSquare, targetSquare);
     };
 
     // ── Click to move (mirrors analyzer exactly) ──────────────────────────────
-    const onSquareClick = (square) => {
-        if (!isMyTurn) return;
-        const c = new Chess(localFen);
+    const onSquareClick = ({ square } = {}) => {
+        if (!square || !isMyTurn) return;
+        const c = chess;
 
         // No piece selected yet
         if (!moveFrom) {
@@ -199,9 +231,15 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
     const doPromotion = (piece) => {
         if (!promotionMove) return;
         try {
-            const c = new Chess(localFen);
+            const { eng: c, isAbsorption: isAbs, mode: cMode } = getEngine(localFen);
             const move = c.move({ from: promotionMove.from, to: promotionMove.to, promotion: piece });
-            if (move) { const f = c.fen(); setLocalFen(f); sendMove(f); }
+            if (move) { 
+                const newBaseFen = c.fen();
+                const newCaps = isAbs ? c.absorptionState.capabilities : {};
+                const serializedFen = `${newBaseFen}|${cMode}|${JSON.stringify(newCaps)}`;
+                setLocalFen(serializedFen); 
+                sendMove(serializedFen); 
+            }
         } catch {}
         setPromotionMove(null);
     };
@@ -231,10 +269,71 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
         customSquareStyles[kingSquare] = { backgroundColor: 'rgba(220,38,38,.55)', boxShadow: 'inset 0 0 12px rgba(220,38,38,.9)' };
     }
 
+    const dynamicWizardPieces = useMemo(() => {
+        if (!wizardImages) return null;
+        const buildPieceComponent = (basePiece) => ({ square }) => {
+            let src = wizardImages[basePiece];
+            if (mode === 'absorption' && absorptionCapabilities[square]) {
+                const caps = absorptionCapabilities[square];
+                const color = basePiece[0]; // 'w' or 'b'
+                const type = basePiece[1]; // 'P', 'N', 'B', 'R', 'Q', 'K'
+                
+                const allTypes = [...caps, type.toLowerCase()];
+                const hasP = allTypes.includes('p');
+                const hasR = allTypes.includes('r');
+                const hasB = allTypes.includes('b');
+                const hasN = allTypes.includes('n');
+                const hasQ = allTypes.includes('q');
+                
+                const effectiveR = hasR || hasQ;
+                const effectiveB = hasB || hasQ;
+                const effectiveN = hasN;
+                
+                let keySuffix = null;
+                if (effectiveR && effectiveB && effectiveN) {
+                    keySuffix = 'Q_N';
+                } else if (effectiveR && effectiveB) {
+                    keySuffix = 'Q';
+                } else if (hasP) {
+                    if (effectiveR && effectiveN) keySuffix = 'P_N_R';
+                    else if (effectiveB && effectiveN) keySuffix = 'P_B_N';
+                    else if (effectiveR) keySuffix = 'P_R';
+                    else if (effectiveB) keySuffix = 'P_B';
+                    else if (effectiveN) keySuffix = 'P_N';
+                } else {
+                    if (effectiveR && effectiveN) keySuffix = 'R_N';
+                    else if (effectiveB && effectiveN) keySuffix = 'B_N';
+                }
+
+                if (keySuffix) {
+                    src = wizardImages[`${color}${keySuffix}`] || src;
+                }
+            }
+            
+            return (
+                <div style={{ 
+                    width: '100%', 
+                    aspectRatio: '1 / 1', 
+                    backgroundImage: `url(${src})`, 
+                    backgroundSize: 'contain', 
+                    backgroundRepeat: 'no-repeat', 
+                    backgroundPosition: 'center' 
+                }} />
+            );
+        };
+
+        return {
+            wP: buildPieceComponent('wP'), wN: buildPieceComponent('wN'), wB: buildPieceComponent('wB'),
+            wR: buildPieceComponent('wR'), wQ: buildPieceComponent('wQ'), wK: buildPieceComponent('wK'),
+            bP: buildPieceComponent('bP'), bN: buildPieceComponent('bN'), bB: buildPieceComponent('bB'),
+            bR: buildPieceComponent('bR'), bQ: buildPieceComponent('bQ'), bK: buildPieceComponent('bK'),
+        };
+    }, [wizardImages, mode, absorptionCapabilities]);
+
     // ── Board options (plain object, mirrors analyzer) ─────────────────────────
     const boardOptions = {
         id: 'multiplayer-board',
-        position: localFen,
+        position: baseFen,
         onPieceDrop: onDrop,
         onSquareClick: onSquareClick,
         boardOrientation: myColor || 'white',
@@ -242,10 +341,10 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
         allowDragging: isMyTurn,
         darkSquareStyle: { backgroundColor: theme?.board?.dark || '#739552' },
         lightSquareStyle: { backgroundColor: theme?.board?.light || '#ebecd0' },
-        customSquareStyles,
+        squareStyles: customSquareStyles,
         boardStyle: { borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,.4)' },
     };
-    if (theme?.pieces === 'wizard' && wizardPieceComponents) boardOptions.pieces = wizardPieceComponents;
+    if (theme?.pieces === 'wizard' && dynamicWizardPieces) boardOptions.pieces = dynamicWizardPieces;
 
     if (phase === 'waiting') return <WaitingRoom gameCode={gameCode} myColor={myColor} theme={theme} onLeave={leaveGame} />;
 
@@ -255,7 +354,7 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
                 <PlayerBanner color={myColor==='white'?'black':'white'} isMyTurn={!isMyTurn} myColor={myColor} theme={theme} />
                 <div style={{ position:'relative' }}>
                     {gameOverMessage && <GameOverOverlay message={gameOverMessage} onLeave={leaveGame} theme={theme} />}
-                    {promotionMove && <PromotionDialog pm={promotionMove} onPromote={doPromotion} onCancel={() => setPromotionMove(null)} theme={theme} wizPieces={wizardPieceComponents} />}
+                    {promotionMove && <PromotionDialog pm={promotionMove} onPromote={doPromotion} onCancel={() => setPromotionMove(null)} theme={theme} wizardImages={wizardImages} />}
                     <Chessboard options={boardOptions} />
                 </div>
                 <PlayerBanner color={myColor} isMyTurn={isMyTurn} myColor={myColor} theme={theme} />

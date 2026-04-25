@@ -135,7 +135,7 @@ export default function App() {
             </header>
 
             {appMode === 'multiplayer' && phase === 'lobby' && <MultiplayerLobby onCreateGame={createGame} onJoinGame={joinGame} isLoading={mpLoading} error={mpError} theme={activeTheme} />}
-            {appMode === 'multiplayer' && phase !== 'lobby' && <MultiplayerGame fen={mpFen} setFen={setMpFen} myColor={myColor} gameCode={gameCode} phase={phase} gameOverMessage={gameOverMessage} opponentConnected={opponentConnected} sendMove={sendMove} resign={resign} leaveGame={leaveGame} theme={activeTheme} wizardPieceComponents={activeTheme.pieces === 'wizard' ? wizardPieceComponents : null} />}
+            {appMode === 'multiplayer' && phase !== 'lobby' && <MultiplayerGame fen={mpFen} setFen={setMpFen} myColor={myColor} gameCode={gameCode} phase={phase} gameOverMessage={gameOverMessage} opponentConnected={opponentConnected} sendMove={sendMove} resign={resign} leaveGame={leaveGame} theme={activeTheme} wizardImages={activeTheme.pieces === 'wizard' ? WIZARD_IMAGES : null} />}
 
             {/* ── THE ISOLATED LOCAL GAME ENGINE ── */}
             {appMode === 'analyzer' && (

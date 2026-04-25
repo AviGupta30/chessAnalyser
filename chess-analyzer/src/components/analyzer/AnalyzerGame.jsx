@@ -718,23 +718,6 @@ export default function AnalyzerGame({
                         </div>
                     )}
 
-                    {gameMode === 'absorption' && Object.entries(absorptionCapabilities).map(([sq, caps]) => {
-                        if (!caps || caps.length === 0) return null;
-                        const coords = getSquareCoords(sq, boardOrientation);
-                        return (
-                            <div key={sq} style={{
-                                position: 'absolute', left: coords.left, top: coords.top,
-                                width: '12.5%', height: '12.5%', pointerEvents: 'none', zIndex: 12,
-                                display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'flex-start', padding: '4px'
-                            }}>
-                                {caps.map((c, i) => (
-                                    <span key={i} style={{ background: activeTheme.global.accent, color: '#fff', fontSize: '0.7rem', padding: '2px 4px', borderRadius: '4px', margin: '1px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-                                        +{c.toUpperCase()}
-                                    </span>
-                                ))}
-                            </div>
-                        )
-                    })}
 
                     <Chessboard options={boardOptions} />
 
