@@ -1,376 +1,294 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 
 const STD_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+const FILES = ['a','b','c','d','e','f','g','h'];
 
-const UNICODE_PIECES = {
-    wQ: '♕', wR: '♖', wB: '♗', wN: '♘',
-    bQ: '♛', bR: '♜', bB: '♝', bN: '♞'
-};
+function findKingSquare(chess, color) {
+    const board = chess.board();
+    for (let r = 0; r < 8; r++)
+        for (let c = 0; c < 8; c++) {
+            const p = board[r][c];
+            if (p && p.type === 'k' && p.color === color) return FILES[c] + (8 - r);
+        }
+    return null;
+}
 
-// ── WAITING ROOM SCREEN ──────────────────────────────────────────────────────
+// ── Waiting Room ──────────────────────────────────────────────────────────────
 function WaitingRoom({ gameCode, myColor, theme, onLeave }) {
     const [copied, setCopied] = useState(false);
-    const text = theme?.global?.text || '#fff';
-    const accent = theme?.global?.accent || '#3b82f6';
-    const border = theme?.global?.border || '#334155';
-
-    const copyCode = () => {
-        navigator.clipboard.writeText(gameCode).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        });
-    };
-
+    const t = theme?.global || {};
+    const copy = () => navigator.clipboard.writeText(gameCode).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
     return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-            <div style={{ textAlign: 'center', maxWidth: '420px' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem', animation: 'pulse 2s infinite' }}>⏳</div>
-                <h2 style={{ color: text, margin: '0 0 0.5rem', fontSize: '1.6rem', fontWeight: '800' }}>
-                    Waiting for Opponent…
-                </h2>
-                <p style={{ color: text, opacity: 0.55, marginBottom: '2rem' }}>
-                    You are playing as <strong style={{ color: accent }}>{myColor === 'white' ? '♔ White' : '♚ Black'}</strong>
+        <div style={{ display:'flex', justifyContent:'center', alignItems:'center', minHeight:'60vh' }}>
+            <div style={{ textAlign:'center', maxWidth:'420px' }}>
+                <div style={{ fontSize:'3rem', marginBottom:'1rem' }}>⏳</div>
+                <h2 style={{ color: t.text||'#fff', margin:'0 0 .5rem', fontSize:'1.6rem', fontWeight:'800' }}>Waiting for Opponent…</h2>
+                <p style={{ color: t.text||'#fff', opacity:.55, marginBottom:'2rem' }}>
+                    Playing as <strong style={{ color: t.accent||'#3b82f6' }}>{myColor === 'white' ? '♔ White' : '♚ Black'}</strong>
                 </p>
-
-                {/* Game Code Card */}
-                <div style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${border}`, borderRadius: '14px', padding: '2rem', marginBottom: '1.5rem' }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: '700', color: text, opacity: 0.45, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '0.75rem' }}>
-                        Share this code with your friend
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'center' }}>
-                        <div style={{ fontFamily: 'monospace', fontSize: '2.5rem', fontWeight: '900', letterSpacing: '0.6rem', color: accent, background: 'rgba(59,130,246,0.1)', padding: '0.5rem 1.5rem', borderRadius: '10px', border: `1px solid ${accent}44` }}>
-                            {gameCode}
-                        </div>
-                        <button
-                            id="btn-copy-code"
-                            onClick={copyCode}
-                            title="Copy code"
-                            style={{ background: copied ? '#22c55e22' : 'rgba(255,255,255,0.08)', border: `1px solid ${copied ? '#22c55e' : border}`, borderRadius: '8px', padding: '0.6rem 0.8rem', cursor: 'pointer', color: copied ? '#22c55e' : text, fontSize: '1.2rem', transition: 'all 0.2s' }}
-                        >
-                            {copied ? '✓' : '⧉'}
-                        </button>
+                <div style={{ background:'rgba(255,255,255,.05)', border:`1px solid ${t.border||'#334155'}`, borderRadius:'14px', padding:'2rem', marginBottom:'1.5rem' }}>
+                    <div style={{ fontSize:'.75rem', fontWeight:'700', color: t.text||'#fff', opacity:.45, textTransform:'uppercase', letterSpacing:'1.5px', marginBottom:'.75rem' }}>Share with your friend</div>
+                    <div style={{ display:'flex', alignItems:'center', gap:'.75rem', justifyContent:'center' }}>
+                        <div style={{ fontFamily:'monospace', fontSize:'2.5rem', fontWeight:'900', letterSpacing:'.6rem', color: t.accent||'#3b82f6', background:'rgba(59,130,246,.1)', padding:'.5rem 1.5rem', borderRadius:'10px' }}>{gameCode}</div>
+                        <button id="btn-copy-code" onClick={copy} style={{ background: copied?'#22c55e22':'rgba(255,255,255,.08)', border:`1px solid ${copied?'#22c55e':t.border||'#334155'}`, borderRadius:'8px', padding:'.6rem .8rem', cursor:'pointer', color: copied?'#22c55e':t.text||'#fff', fontSize:'1.2rem' }}>{copied ? '✓' : '⧉'}</button>
                     </div>
                 </div>
-
-                {/* Spinner dots */}
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
-                    {[0, 1, 2].map(i => (
-                        <div key={i} style={{ width: '8px', height: '8px', borderRadius: '50%', background: accent, animation: `dotBounce 1.2s ${i * 0.2}s infinite ease-in-out` }} />
-                    ))}
+                <div style={{ display:'flex', justifyContent:'center', gap:'.5rem', marginBottom:'2rem' }}>
+                    {[0,1,2].map(i => <div key={i} style={{ width:'8px', height:'8px', borderRadius:'50%', background: t.accent||'#3b82f6', animation:`dotBounce 1.2s ${i*.2}s infinite ease-in-out` }} />)}
                 </div>
-
-                <button
-                    onClick={onLeave}
-                    style={{ background: 'transparent', border: `1px solid ${border}`, color: text, opacity: 0.6, borderRadius: '8px', padding: '0.5rem 1.5rem', cursor: 'pointer', fontSize: '0.9rem' }}
-                >
-                    Cancel
-                </button>
+                <button onClick={onLeave} style={{ background:'transparent', border:`1px solid ${t.border||'#334155'}`, color: t.text||'#fff', opacity:.6, borderRadius:'8px', padding:'.5rem 1.5rem', cursor:'pointer' }}>Cancel</button>
             </div>
         </div>
     );
 }
 
-// ── GAME OVER OVERLAY ────────────────────────────────────────────────────────
+// ── Game Over ─────────────────────────────────────────────────────────────────
 function GameOverOverlay({ message, onLeave, theme }) {
-    const accent = theme?.global?.accent || '#3b82f6';
-    const surface = theme?.global?.surface || '#1e293b';
-    const text = theme?.global?.text || '#fff';
-    const border = theme?.global?.border || '#334155';
-
+    const t = theme?.global || {};
     return (
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 30, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '4px' }}>
-            <div style={{ background: surface, color: accent, padding: '2rem 3rem', borderRadius: '16px', fontSize: '1.8rem', fontWeight: '800', border: `2px solid ${border}`, boxShadow: '0 10px 40px rgba(0,0,0,0.6)', textAlign: 'center', maxWidth: '360px' }}>
-                <div style={{ marginBottom: '1.5rem' }}>{message}</div>
-                <button
-                    id="btn-back-to-lobby"
-                    onClick={onLeave}
-                    style={{ fontSize: '1rem', fontWeight: '700', background: accent, color: '#fff', border: 'none', borderRadius: '10px', padding: '0.75rem 2rem', cursor: 'pointer', transition: 'opacity 0.2s' }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                >
-                    Back to Lobby
-                </button>
+        <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,.65)', zIndex:30, display:'flex', justifyContent:'center', alignItems:'center', borderRadius:'4px' }}>
+            <div style={{ background: t.surface||'#1e293b', color: t.accent||'#3b82f6', padding:'2rem 3rem', borderRadius:'16px', fontSize:'1.8rem', fontWeight:'800', border:`2px solid ${t.border||'#334155'}`, textAlign:'center', maxWidth:'360px' }}>
+                <div style={{ marginBottom:'1.5rem' }}>{message}</div>
+                <button id="btn-back-to-lobby" onClick={onLeave} style={{ fontSize:'1rem', fontWeight:'700', background: t.accent||'#3b82f6', color:'#fff', border:'none', borderRadius:'10px', padding:'.75rem 2rem', cursor:'pointer' }}>Back to Lobby</button>
             </div>
         </div>
     );
 }
 
-// ── PROMOTION DIALOG ─────────────────────────────────────────────────────────
-function PromotionDialog({ promotionMove, onPromote, onCancel, theme, wizardPieceComponents }) {
-    const surface = theme?.global?.surface || '#1e293b';
-    const text = theme?.global?.text || '#fff';
-    const border = theme?.global?.border || '#334155';
-    const light = theme?.board?.light || '#ebecd0';
-    const isWizard = theme?.pieces === 'wizard';
-
+// ── Promotion ─────────────────────────────────────────────────────────────────
+const UNI = { wQ:'♕', wR:'♖', wB:'♗', wN:'♘', bQ:'♛', bR:'♜', bB:'♝', bN:'♞' };
+function PromotionDialog({ pm, onPromote, onCancel, theme, wizPieces }) {
+    const t = theme?.global || {};
     return (
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 20, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '4px' }}>
-            <div style={{ background: surface, padding: '2rem', borderRadius: '14px', border: `1px solid ${border}`, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', textAlign: 'center' }}>
-                <h3 style={{ marginTop: 0, marginBottom: '1.5rem', color: text }}>Promote Pawn To:</h3>
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                    {['q', 'r', 'b', 'n'].map(p => {
-                        const pieceKey = `${promotionMove.color}${p.toUpperCase()}`;
-                        const PieceComp = wizardPieceComponents?.[pieceKey];
+        <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,.65)', zIndex:20, display:'flex', justifyContent:'center', alignItems:'center', borderRadius:'4px' }}>
+            <div style={{ background: t.surface||'#1e293b', padding:'2rem', borderRadius:'14px', border:`1px solid ${t.border||'#334155'}`, textAlign:'center' }}>
+                <h3 style={{ marginTop:0, marginBottom:'1.5rem', color: t.text||'#fff' }}>Promote to:</h3>
+                <div style={{ display:'flex', gap:'1rem', justifyContent:'center' }}>
+                    {['q','r','b','n'].map(p => {
+                        const pk = `${pm.color}${p.toUpperCase()}`;
+                        const Comp = wizPieces?.[pk];
                         return (
-                            <div
-                                key={p}
-                                onClick={() => onPromote(p)}
-                                style={{ width: '70px', height: '70px', cursor: 'pointer', background: light, borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'transform 0.2s', border: `2px solid ${border}` }}
-                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
-                                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                            >
-                                {isWizard && PieceComp
-                                    ? <PieceComp />
-                                    : <span style={{ fontSize: '3rem', color: '#000' }}>{UNICODE_PIECES[pieceKey]}</span>
-                                }
+                            <div key={p} onClick={() => onPromote(p)} style={{ width:'70px', height:'70px', cursor:'pointer', background: theme?.board?.light||'#ebecd0', borderRadius:'8px', display:'flex', justifyContent:'center', alignItems:'center', border:`2px solid ${t.border||'#334155'}` }}>
+                                {Comp ? <Comp /> : <span style={{ fontSize:'3rem', color:'#000' }}>{UNI[pk]}</span>}
                             </div>
                         );
                     })}
                 </div>
-                <button onClick={onCancel} style={{ marginTop: '1.5rem', padding: '0.5rem 2rem', cursor: 'pointer', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '1rem', fontWeight: 'bold' }}>
-                    Cancel
-                </button>
+                <button onClick={onCancel} style={{ marginTop:'1.5rem', padding:'.5rem 2rem', cursor:'pointer', background:'#ef4444', color:'#fff', border:'none', borderRadius:'4px', fontWeight:'bold' }}>Cancel</button>
             </div>
         </div>
     );
 }
 
-// ── PLAYER BANNER ─────────────────────────────────────────────────────────────
+// ── Player Banner ─────────────────────────────────────────────────────────────
 function PlayerBanner({ color, isMyTurn, myColor, theme }) {
-    const text = theme?.global?.text || '#fff';
-    const accent = theme?.global?.accent || '#3b82f6';
-    const border = theme?.global?.border || '#334155';
-    const isMe = color === myColor;
-
+    const t = theme?.global || {};
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 1rem', background: isMyTurn ? `${accent}18` : 'rgba(255,255,255,0.03)', borderRadius: '8px', border: `1px solid ${isMyTurn ? accent : border}`, transition: 'all 0.3s', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '1.4rem' }}>{color === 'white' ? '♔' : '♚'}</span>
-            <span style={{ fontWeight: '700', color: text, fontSize: '0.95rem' }}>
-                {isMe ? 'You' : 'Opponent'} ({color === 'white' ? 'White' : 'Black'})
-            </span>
-            {isMyTurn && (
-                <span style={{ marginLeft: 'auto', fontSize: '0.75rem', fontWeight: '700', color: accent, animation: 'pulse 1.5s infinite' }}>
-                    ● To Move
-                </span>
-            )}
+        <div style={{ display:'flex', alignItems:'center', gap:'.75rem', padding:'.6rem 1rem', background: isMyTurn?`${t.accent||'#3b82f6'}18`:'rgba(255,255,255,.03)', borderRadius:'8px', border:`1px solid ${isMyTurn?t.accent||'#3b82f6':t.border||'#334155'}`, transition:'all .3s', marginBottom:'.5rem' }}>
+            <span style={{ fontSize:'1.4rem' }}>{color==='white'?'♔':'♚'}</span>
+            <span style={{ fontWeight:'700', color: t.text||'#fff', fontSize:'.95rem' }}>{color===myColor?'You':'Opponent'} ({color==='white'?'White':'Black'})</span>
+            {isMyTurn && <span style={{ marginLeft:'auto', fontSize:'.75rem', fontWeight:'700', color: t.accent||'#3b82f6', animation:'pulse 1.5s infinite' }}>● To Move</span>}
         </div>
     );
 }
 
-// ── MAIN MULTIPLAYER GAME COMPONENT ──────────────────────────────────────────
-export default function MultiplayerGame({
-    fen, setFen, myColor, gameCode, phase, gameOverMessage,
-    opponentConnected, sendMove, resign, leaveGame,
-    theme, wizardPieceComponents
-}) {
-    const [moveFrom, setMoveFrom] = useState(null);
+// ── Main Game ─────────────────────────────────────────────────────────────────
+export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase, gameOverMessage, sendMove, resign, leaveGame, theme, wizardPieceComponents }) {
+    const t = theme?.global || {};
+
+    // Local FEN — instant updates, no prop roundtrip
+    const [localFen, setLocalFen] = useState(fenProp || STD_FEN);
+    useEffect(() => { setLocalFen(fenProp || STD_FEN); }, [fenProp]);
+
+    const [moveFrom, setMoveFrom] = useState('');
     const [promotionMove, setPromotionMove] = useState(null);
-    const [invalidSquares, setInvalidSquares] = useState([]);
-    const invalidTimerRef = useRef(null);
 
-    const text = theme?.global?.text || '#fff';
-    const accent = theme?.global?.accent || '#3b82f6';
-    const border = theme?.global?.border || '#334155';
-    const surface = theme?.global?.surface || '#1e293b';
-
-    const chessRef = new Chess(fen);
-    const turnColor = chessRef.turn() === 'w' ? 'white' : 'black';
-    const isMyTurn = turnColor === myColor;
-
-    const flashInvalid = (sq1, sq2) => {
-        setInvalidSquares([sq1, sq2].filter(Boolean));
-        clearTimeout(invalidTimerRef.current);
-        invalidTimerRef.current = setTimeout(() => setInvalidSquares([]), 400);
+    // Flash state
+    const [flashSqs, setFlashSqs] = useState([]);
+    const flashRef = useRef(null);
+    const flashInvalid = (squares) => {
+        setFlashSqs(squares.filter(Boolean));
+        clearTimeout(flashRef.current);
+        flashRef.current = setTimeout(() => setFlashSqs([]), 450);
     };
 
-    const applyMove = useCallback((from, to) => {
-        const chess = new Chess(fen);
-        const possibleMoves = chess.moves({ verbose: true });
-        const isPromotion = possibleMoves.some(m => m.from === from && m.to === to && m.flags.includes('p'));
+    // Derived state
+    let chess;
+    try { chess = new Chess(localFen); } catch { chess = new Chess(); }
+    const myChessColor = myColor === 'white' ? 'w' : 'b';
+    const isMyTurn = chess.turn() === myChessColor;
+    const inCheck = chess.inCheck();
+    const kingSquare = inCheck ? findKingSquare(chess, chess.turn()) : null;
 
-        if (isPromotion) {
-            const testMove = chess.move({ from, to, promotion: 'q' });
-            if (!testMove) { flashInvalid(from, to); return false; }
-            chess.undo();
-            setPromotionMove({ from, to, color: chess.turn() });
-            return true;
-        }
+    // Valid target dots for selected piece
+    let validTargets = new Set();
+    if (moveFrom && isMyTurn) {
+        try {
+            chess.moves({ square: moveFrom, verbose: true }).forEach(m => validTargets.add(m.to));
+        } catch {}
+    }
 
-        const move = chess.move({ from, to, promotion: 'q' });
-        if (!move) { flashInvalid(from, to); return false; }
-
-        const newFen = chess.fen();
-        setFen(newFen);
-        sendMove(newFen);
-        setMoveFrom(null);
-        return true;
-    }, [fen, setFen, sendMove]);
-
-    // ── DRAG & DROP ──
-    const onDrop = useCallback(({ sourceSquare, targetSquare }) => {
-        if (!isMyTurn || !targetSquare) return false;
-        setMoveFrom(null);
-        return applyMove(sourceSquare, targetSquare);
-    }, [isMyTurn, applyMove]);
-
-    // ── CLICK TO MOVE ──
-    const onSquareClick = useCallback((square) => {
-        if (!isMyTurn) return;
-        const chess = new Chess(fen);
-
-        if (!moveFrom) {
-            const piece = chess.get(square);
-            if (piece && piece.color === chess.turn()) setMoveFrom(square);
-            return;
-        }
-
-        if (square === moveFrom) { setMoveFrom(null); return; }
-
-        // Try clicking another own piece → switch selection
-        const piece = chess.get(square);
-        if (piece && piece.color === chess.turn()) {
-            setMoveFrom(square);
-            return;
-        }
-
-        applyMove(moveFrom, square);
-    }, [isMyTurn, fen, moveFrom, applyMove]);
-
-    // ── PROMOTION ──
-    const executePromotion = (piece) => {
-        if (!promotionMove) return;
-        const chess = new Chess(fen);
-        const move = chess.move({ from: promotionMove.from, to: promotionMove.to, promotion: piece });
-        if (move) {
-            const newFen = chess.fen();
-            setFen(newFen);
+    // ── Core move execution (mirrors analyzer — try-catch around chess.js v1) ──
+    const tryMove = (from, to) => {
+        if (!from || !to || from === to) return false;
+        try {
+            const c = new Chess(localFen);
+            // Check promotion
+            const prom = c.moves({ square: from, verbose: true }).some(m => m.to === to && m.flags.includes('p'));
+            if (prom) {
+                c.move({ from, to, promotion: 'q' }); // validate it works
+                c.undo();
+                setPromotionMove({ from, to, color: c.turn() });
+                setMoveFrom('');
+                return true;
+            }
+            // Normal move
+            const move = c.move({ from, to, promotion: 'q' });
+            if (!move) throw new Error('invalid');
+            const newFen = c.fen();
+            setLocalFen(newFen);
             sendMove(newFen);
+            setMoveFrom('');
+            return true;
+        } catch {
+            const toFlash = [to];
+            try { const c2 = new Chess(localFen); if (c2.inCheck()) toFlash.push(findKingSquare(c2, c2.turn())); } catch {}
+            flashInvalid(toFlash);
+            setMoveFrom('');
+            return false;
         }
+    };
+
+    // ── Drag & drop (mirrors analyzer exactly) ────────────────────────────────
+    const onDrop = ({ sourceSquare, targetSquare }) => {
+        if (!isMyTurn || !targetSquare || sourceSquare === targetSquare) return false;
+        setMoveFrom('');
+        return tryMove(sourceSquare, targetSquare);
+    };
+
+    // ── Click to move (mirrors analyzer exactly) ──────────────────────────────
+    const onSquareClick = (square) => {
+        if (!isMyTurn) return;
+        const c = new Chess(localFen);
+
+        // No piece selected yet
+        if (!moveFrom) {
+            const piece = c.get(square);
+            if (piece && piece.color === c.turn()) {
+                setMoveFrom(square);
+            } else if (inCheck) {
+                flashInvalid([kingSquare]);
+            }
+            return;
+        }
+
+        // Clicked same square → deselect
+        if (square === moveFrom) { setMoveFrom(''); return; }
+
+        // Clicked another own piece → switch selection
+        const piece = c.get(square);
+        if (piece && piece.color === c.turn()) { setMoveFrom(square); return; }
+
+        // Attempt move
+        tryMove(moveFrom, square);
+    };
+
+    // ── Promotion execution ───────────────────────────────────────────────────
+    const doPromotion = (piece) => {
+        if (!promotionMove) return;
+        try {
+            const c = new Chess(localFen);
+            const move = c.move({ from: promotionMove.from, to: promotionMove.to, promotion: piece });
+            if (move) { const f = c.fen(); setLocalFen(f); sendMove(f); }
+        } catch {}
         setPromotionMove(null);
     };
 
-    // ── SQUARE STYLES ──
-    const squareStyles = {};
-    invalidSquares.forEach(sq => { squareStyles[sq] = { animation: 'errorFlash 0.4s ease-out forwards' }; });
-    if (moveFrom) squareStyles[moveFrom] = { ...squareStyles[moveFrom], backgroundColor: 'rgba(255,255,0,0.4)' };
+    // ── Square styles ─────────────────────────────────────────────────────────
+    const customSquareStyles = {};
 
-    // Highlight valid moves for selected piece
-    if (moveFrom && isMyTurn) {
-        const chess = new Chess(fen);
-        chess.moves({ square: moveFrom, verbose: true }).forEach(m => {
-            squareStyles[m.to] = {
-                ...squareStyles[m.to],
-                background: 'radial-gradient(circle, rgba(0,0,0,0.25) 25%, transparent 26%)',
-            };
-        });
+    // Red flash
+    flashSqs.forEach(sq => {
+        if (sq) customSquareStyles[sq] = { animation: 'errorFlash 0.45s ease-out forwards' };
+    });
+
+    // Selected piece — yellow
+    if (moveFrom) {
+        customSquareStyles[moveFrom] = { ...customSquareStyles[moveFrom], backgroundColor: 'rgba(255,214,0,.45)' };
     }
 
+    // Valid move dots
+    validTargets.forEach(sq => {
+        if (!customSquareStyles[sq]?.animation) {
+            customSquareStyles[sq] = { background: 'radial-gradient(circle, rgba(0,0,0,.22) 28%, transparent 29%)' };
+        }
+    });
+
+    // King in check — red glow
+    if (kingSquare && !flashSqs.includes(kingSquare)) {
+        customSquareStyles[kingSquare] = { backgroundColor: 'rgba(220,38,38,.55)', boxShadow: 'inset 0 0 12px rgba(220,38,38,.9)' };
+    }
+
+    // ── Board options (plain object, mirrors analyzer) ─────────────────────────
     const boardOptions = {
         id: 'multiplayer-board',
-        position: fen || STD_FEN,
+        position: localFen,
         onPieceDrop: onDrop,
-        onSquareClick,
+        onSquareClick: onSquareClick,
         boardOrientation: myColor || 'white',
-        animationDurationInMs: 180,
+        animationDurationInMs: 100,
         allowDragging: isMyTurn,
         darkSquareStyle: { backgroundColor: theme?.board?.dark || '#739552' },
         lightSquareStyle: { backgroundColor: theme?.board?.light || '#ebecd0' },
-        customSquareStyles: squareStyles,
-        boardStyle: { borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,0.4)' },
+        customSquareStyles,
+        boardStyle: { borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,.4)' },
     };
+    if (theme?.pieces === 'wizard' && wizardPieceComponents) boardOptions.pieces = wizardPieceComponents;
 
-    if (theme?.pieces === 'wizard' && wizardPieceComponents) {
-        boardOptions.pieces = wizardPieceComponents;
-    }
-
-    // ── WAITING STATE ──
-    if (phase === 'waiting') {
-        return <WaitingRoom gameCode={gameCode} myColor={myColor} theme={theme} onLeave={leaveGame} />;
-    }
+    if (phase === 'waiting') return <WaitingRoom gameCode={gameCode} myColor={myColor} theme={theme} onLeave={leaveGame} />;
 
     return (
-        <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap', padding: '1rem' }}>
-
-            {/* ── BOARD AREA ── */}
-            <div style={{ width: '560px', maxWidth: '95vw' }}>
-                {/* Opponent banner (top) */}
-                <PlayerBanner
-                    color={myColor === 'white' ? 'black' : 'white'}
-                    isMyTurn={turnColor !== myColor}
-                    myColor={myColor}
-                    theme={theme}
-                />
-
-                <div style={{ position: 'relative' }}>
-                    {gameOverMessage && (
-                        <GameOverOverlay message={gameOverMessage} onLeave={leaveGame} theme={theme} />
-                    )}
-                    {promotionMove && (
-                        <PromotionDialog
-                            promotionMove={promotionMove}
-                            onPromote={executePromotion}
-                            onCancel={() => setPromotionMove(null)}
-                            theme={theme}
-                            wizardPieceComponents={wizardPieceComponents}
-                        />
-                    )}
+        <div style={{ display:'flex', gap:'2rem', justifyContent:'center', alignItems:'flex-start', flexWrap:'wrap', padding:'1rem' }}>
+            <div style={{ width:'560px', maxWidth:'95vw' }}>
+                <PlayerBanner color={myColor==='white'?'black':'white'} isMyTurn={!isMyTurn} myColor={myColor} theme={theme} />
+                <div style={{ position:'relative' }}>
+                    {gameOverMessage && <GameOverOverlay message={gameOverMessage} onLeave={leaveGame} theme={theme} />}
+                    {promotionMove && <PromotionDialog pm={promotionMove} onPromote={doPromotion} onCancel={() => setPromotionMove(null)} theme={theme} wizPieces={wizardPieceComponents} />}
                     <Chessboard options={boardOptions} />
                 </div>
-
-                {/* My banner (bottom) */}
-                <PlayerBanner
-                    color={myColor}
-                    isMyTurn={isMyTurn}
-                    myColor={myColor}
-                    theme={theme}
-                />
+                <PlayerBanner color={myColor} isMyTurn={isMyTurn} myColor={myColor} theme={theme} />
             </div>
 
-            {/* ── SIDE PANEL ── */}
-            <div style={{ width: '220px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {/* Room Info */}
-                <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: '12px', padding: '1.25rem' }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: '700', color: text, opacity: 0.45, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Game Code</div>
-                    <div style={{ fontFamily: 'monospace', fontSize: '1.5rem', fontWeight: '900', letterSpacing: '0.3rem', color: accent }}>{gameCode}</div>
+            <div style={{ width:'220px', display:'flex', flexDirection:'column', gap:'1rem' }}>
+                <div style={{ background: t.surface||'#1e293b', border:`1px solid ${t.border||'#334155'}`, borderRadius:'12px', padding:'1.25rem' }}>
+                    <div style={{ fontSize:'.7rem', fontWeight:'700', color: t.text||'#fff', opacity:.45, textTransform:'uppercase', letterSpacing:'1px', marginBottom:'.5rem' }}>Game Code</div>
+                    <div style={{ fontFamily:'monospace', fontSize:'1.5rem', fontWeight:'900', letterSpacing:'.3rem', color: t.accent||'#3b82f6' }}>{gameCode}</div>
                 </div>
 
-                {/* Status */}
-                <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: '12px', padding: '1.25rem' }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: '700', color: text, opacity: 0.45, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Status</div>
-                    <div style={{ color: isMyTurn ? accent : text, fontWeight: '700', fontSize: '0.95rem' }}>
-                        {isMyTurn ? '🟢 Your turn' : '⏳ Opponent\'s turn'}
+                <div style={{ background: t.surface||'#1e293b', border:`1px solid ${t.border||'#334155'}`, borderRadius:'12px', padding:'1.25rem' }}>
+                    <div style={{ fontSize:'.7rem', fontWeight:'700', color: t.text||'#fff', opacity:.45, textTransform:'uppercase', letterSpacing:'1px', marginBottom:'.5rem' }}>Status</div>
+                    <div style={{ color: isMyTurn ? t.accent||'#3b82f6' : t.text||'#fff', fontWeight:'700', fontSize:'.95rem' }}>
+                        {inCheck && isMyTurn ? '⚠️ You are in check!' : isMyTurn ? '🟢 Your turn' : "⏳ Opponent's turn"}
                     </div>
-                    <div style={{ color: text, opacity: 0.5, fontSize: '0.8rem', marginTop: '0.3rem' }}>
-                        You: {myColor === 'white' ? '♔ White' : '♚ Black'}
-                    </div>
+                    <div style={{ color: t.text||'#fff', opacity:.5, fontSize:'.8rem', marginTop:'.3rem' }}>You: {myColor==='white'?'♔ White':'♚ Black'}</div>
                 </div>
 
-                {/* Turn indicator */}
-                <div style={{ background: isMyTurn ? `${accent}18` : 'rgba(255,255,255,0.03)', border: `1px solid ${isMyTurn ? accent : border}`, borderRadius: '12px', padding: '1rem', textAlign: 'center', transition: 'all 0.4s', fontSize: '0.85rem', color: text, fontWeight: '600' }}>
-                    {isMyTurn
-                        ? <span style={{ color: accent }}>✦ Make your move!</span>
-                        : <span style={{ opacity: 0.55 }}>Waiting for opponent…</span>
-                    }
+                <div style={{ background: isMyTurn?`${t.accent||'#3b82f6'}18`:'rgba(255,255,255,.03)', border:`1px solid ${isMyTurn?t.accent||'#3b82f6':t.border||'#334155'}`, borderRadius:'12px', padding:'1rem', textAlign:'center', fontSize:'.85rem', color: t.text||'#fff', fontWeight:'600' }}>
+                    {moveFrom
+                        ? <span style={{ color: t.accent||'#3b82f6' }}>Click a dot to move</span>
+                        : isMyTurn
+                            ? <span style={{ color: t.accent||'#3b82f6' }}>✦ Select a piece</span>
+                            : <span style={{ opacity:.55 }}>Waiting for opponent…</span>}
                 </div>
 
-                {/* Actions */}
-                <button
-                    id="btn-resign"
-                    onClick={() => { if (window.confirm('Are you sure you want to resign?')) resign(); }}
-                    style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)', color: '#f87171', borderRadius: '10px', padding: '0.75rem', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', transition: 'all 0.2s' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
-                >
+                <button id="btn-resign" onClick={() => { if (window.confirm('Resign?')) resign(); }}
+                    style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.4)', color:'#f87171', borderRadius:'10px', padding:'.75rem', cursor:'pointer', fontWeight:'700', fontSize:'.9rem' }}>
                     🏳️ Resign
                 </button>
-
-                <button
-                    id="btn-leave-game"
-                    onClick={leaveGame}
-                    style={{ background: 'transparent', border: `1px solid ${border}`, color: text, opacity: 0.55, borderRadius: '10px', padding: '0.75rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem' }}
-                >
+                <button id="btn-leave-game" onClick={leaveGame}
+                    style={{ background:'transparent', border:`1px solid ${t.border||'#334155'}`, color: t.text||'#fff', opacity:.55, borderRadius:'10px', padding:'.75rem', cursor:'pointer', fontWeight:'600', fontSize:'.9rem' }}>
                     ← Back to Lobby
                 </button>
             </div>
