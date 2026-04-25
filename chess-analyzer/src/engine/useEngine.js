@@ -34,7 +34,8 @@ export function useEngine() {
                 setEngineState({
                     status: 'ready',
                     result: { ...result, cp: normaliseScore(result.cp, fen) },
-                    error: null
+                    error: null,
+                    fen: fen
                 });
             })
             .catch(err => {

@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Chess } from 'chess.js';
-import { classifyMoveSmart } from '../utils/coach';
 
 const COACH_PERSONAS = {
     gm: { name: 'The Grandmaster', pitchMod: 0.8, rateMod: 1.15, preferVoice: ['Google UK English Male', 'Daniel', 'Natural'] },
@@ -29,32 +28,19 @@ export default function CoachPanel({ history, currentMoveIndex, currentEngineSta
         if (!currentEngineState.result) return { type: 'Waiting...', icon: '⏳', color: '#94a3b8', text: 'Loading engine...', spokenText: '', isMutedState: true };
 
         const currentMoveObj = history[currentMoveIndex];
-        const prevMoveObj = currentMoveIndex > 0 ? history[currentMoveIndex - 1] : null;
-
-        const activeColor = currentMoveObj.fen.split(' ')[1];
-        let absMate = currentEngineState.result.mate;
-        if (activeColor === 'b' && absMate !== null) absMate = -absMate;
-
-        const currentEval = { cp: currentEngineState.result.cp, mate: absMate };
-        const prevEval = prevMoveObj?.savedEval ?? { cp: 0, mate: null, bestMove: null };
-
-        let prevBestMoveObj = null;
-        if (prevEval.bestMove) {
-            try {
-                const temp = new Chess(prevMoveObj ? prevMoveObj.fen : startFen);
-                prevBestMoveObj = temp.move({
-                    from: prevEval.bestMove.substring(0, 2),
-                    to: prevEval.bestMove.substring(2, 4),
-                    promotion: prevEval.bestMove.length === 5 ? prevEval.bestMove[4] : undefined
-                });
-            } catch (e) { }
+        if (currentMoveObj && currentMoveObj.savedEval && currentMoveObj.savedEval.classification) {
+            const cls = currentMoveObj.savedEval.classification;
+            return {
+                type: cls.tag,
+                icon: cls.icon,
+                color: cls.color,
+                text: cls.msg,
+                spokenText: cls.msg,
+                isMutedState: false
+            };
         }
 
-        const isWhiteMove = currentMoveIndex % 2 === 0;
-        const currentSequence = history.slice(0, currentMoveIndex + 1).map(m => m.san).join(' ');
-        const prevSequence = history.slice(0, currentMoveIndex).map(m => m.san).join(' ');
-
-        return classifyMoveSmart(prevEval, currentEval, isWhiteMove, currentMoveObj, prevBestMoveObj, currentSequence, prevSequence);
+        return { type: 'Evaluating...', icon: '⚙️', color: '#94a3b8', text: 'Analyzing position...', spokenText: '', isMutedState: true };
     }, [history, currentMoveIndex, currentEngineState, startFen]);
 
     const getDynamicTone = (type, persona) => {

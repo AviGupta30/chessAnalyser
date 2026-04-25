@@ -67,6 +67,7 @@ export default function App() {
     const [username, setUsername] = useState('');
     const [fetchedGames, setFetchedGames] = useState([]);
     const [isFetching, setIsFetching] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
 
     const { phase, myColor, gameCode, fen: mpFen, setFen: setMpFen, gameOverMessage, opponentConnected, error: mpError, isLoading: mpLoading, createGame, joinGame, sendMove, resign, leaveGame } = useMultiplayer();
 
@@ -119,6 +120,14 @@ export default function App() {
                             {Object.entries(THEMES).map(([key, theme]) => <option key={key} value={key} style={{ background: '#1e293b' }}>{theme.name}</option>)}
                         </select>
                     </div>
+
+                    <button 
+                        onClick={() => setIsMuted(!isMuted)} 
+                        style={{ background: activeTheme.global.surface, border: `1px solid ${activeTheme.global.border}`, borderRadius: '8px', padding: '0.5rem', cursor: 'pointer', fontSize: '1.2rem' }}
+                        title={isMuted ? "Unmute Sounds" : "Mute Sounds"}
+                    >
+                        {isMuted ? '🔇' : '🔊'}
+                    </button>
                 </div>
 
                 {appMode === 'analyzer' && (
@@ -143,10 +152,11 @@ export default function App() {
                     key={gameMode}
                     activeTheme={activeTheme}
                     wizardPieceComponents={wizardPieceComponents}
-                    wizardImages={WIZARD_IMAGES}
+                    wizardImages={activeTheme.pieces === 'wizard' ? WIZARD_IMAGES : null}
                     gameMode={gameMode}
                     fetchedGames={fetchedGames}
                     boardOrientation={boardOrientation}
+                    isMuted={isMuted}
                 />
             )}
         </div>

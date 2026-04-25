@@ -4,9 +4,8 @@ import { Chessboard } from 'react-chessboard';
 import { useEngine } from '../../engine/useEngine';
 import EvalBar from '../EvalBar';
 import GameSidebar from '../GameSidebar';
-
-// ── FIXED IMPORT TO MATCH YOUR EXACT FILE NAME ('absorbtion.js') ──
 import AbsorptionEngine from '../../engine/variants/absorption/absorbtion';
+import AudioManager from '../../utils/audioManager';
 
 const STD_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -60,29 +59,73 @@ const getMoveClassification = (delta, moveSan, missedMoveSan, isSacrifice) => {
     const cleanSan = (san) => san ? san.replace(/[\+#\!\?]/g, '') : '';
     const isTopEngineChoice = cleanSan(moveSan) === cleanSan(missedMoveSan);
 
-    const betterMoveText = (!isTopEngineChoice && missedMoveSan)
-        ? ` You played ${moveSan}, but the engine preferred ${missedMoveSan}.`
-        : '';
+    const isCapture = moveSan.includes('x');
+    const isCheck = moveSan.includes('+');
+    const isMate = moveSan.includes('#');
+    const isCastle = moveSan === 'O-O' || moveSan === 'O-O-O';
+    const isPromotion = moveSan.includes('=');
 
-    if (isSacrifice && delta <= 3) {
-        return { tag: 'Brilliant', color: '#22d3ee', icon: '!!', msg: `Brilliant! ${moveSan} is a spectacular piece sacrifice.` };
+    // Generate highly smart, contextual commentary like chess.com
+    let contextCommentary = '';
+    
+    if (isMate) {
+        contextCommentary = ' This move delivers checkmate! An outstanding conclusion to the game.';
+    } else if (isSacrifice && delta <= 3) {
+        contextCommentary = ' You sacrificed material, but the engine sees the brilliance in your positional or tactical compensation.';
+    } else if (isCastle) {
+        if (delta <= 6) contextCommentary = ' Securing the King and bringing the Rook into the game is almost always a wise choice.';
+        else contextCommentary = ' Castling here is questionable, perhaps leaving key squares vulnerable or ignoring a more pressing threat.';
+    } else if (isPromotion) {
+        contextCommentary = ' Promoting the pawn secures a massive material advantage.';
+    } else if (isCapture) {
+        if (delta <= 6) contextCommentary = ' A solid capture that eliminates an opponent\'s active piece or pawn.';
+        else contextCommentary = ' This capture actually loses the advantage, perhaps due to a tactical trap or a poor recapture.';
+    } else if (isCheck) {
+        if (delta <= 6) contextCommentary = ' Forcing the opponent\'s King to react gives you the initiative.';
+        else contextCommentary = ' A spite check. This check actually helps your opponent improve their piece coordination or King safety.';
     }
 
-    if (isTopEngineChoice) return { tag: 'Best', color: '#16a34a', icon: '★', msg: `Best move! ${moveSan} is exactly the optimal line.` };
-    if (delta <= 2) return { tag: 'Excellent', color: '#4ade80', icon: '✓', msg: `Excellent choice.${betterMoveText}` };
-    if (delta <= 6) return { tag: 'Good', color: '#60a5fa', icon: '👍', msg: `Good move.${betterMoveText}` };
-    if (delta <= 12) return { tag: 'Inaccuracy', color: '#facc15', icon: '?!', msg: `Inaccuracy.${betterMoveText}` };
-    if (delta <= 20) return { tag: 'Mistake', color: '#f97316', icon: '?', msg: `Mistake.${betterMoveText}` };
+    if (!contextCommentary) {
+        if (isTopEngineChoice) {
+            contextCommentary = ' You found the absolute best continuation in this position.';
+        } else if (delta <= 6) {
+            contextCommentary = ' A solid, developing move that improves your position.';
+        }
+    }
 
-    return { tag: 'Blunder', color: '#ef4444', icon: '??', msg: `A critical blunder!${betterMoveText}` };
+    const betterMoveText = (!isTopEngineChoice && missedMoveSan)
+        ? ` The engine preferred ${missedMoveSan} here.`
+        : '';
+
+    // Assign categories based on win probability delta
+    if (isSacrifice && delta <= 3) {
+        return { tag: 'Brilliant', color: '#22d3ee', icon: '!!', msg: `Brilliant! ${moveSan} is a spectacular sacrifice.${contextCommentary}` };
+    }
+    
+    if (isTopEngineChoice && isMate) return { tag: 'Best', color: '#16a34a', icon: '★', msg: `Best move! ${moveSan} is forced mate.${contextCommentary}` };
+
+    if (isTopEngineChoice && (isCapture || isCheck) && delta <= 1) {
+        return { tag: 'Great', color: '#3b82f6', icon: '!', msg: `Great move! ${moveSan} is very strong.${contextCommentary}` };
+    }
+
+    if (isTopEngineChoice) return { tag: 'Best', color: '#16a34a', icon: '★', msg: `Best move. ${moveSan} is the optimal line.${contextCommentary}` };
+    if (delta <= 2) return { tag: 'Excellent', color: '#4ade80', icon: '👍', msg: `An excellent choice.${contextCommentary}${betterMoveText}` };
+    if (delta <= 6) return { tag: 'Good', color: '#60a5fa', icon: '✔️', msg: `Good move.${contextCommentary}${betterMoveText}` };
+    
+    if (delta <= 12) return { tag: 'Inaccuracy', color: '#facc15', icon: '?!', msg: `Inaccuracy.${contextCommentary || ' This move allows your opponent to equalize.'}${betterMoveText}` };
+    if (delta <= 20) return { tag: 'Mistake', color: '#f97316', icon: '?', msg: `Mistake.${contextCommentary || ' This hands the initiative over to your opponent.'}${betterMoveText}` };
+
+    return { tag: 'Blunder', color: '#ef4444', icon: '??', msg: `Blunder!${contextCommentary || ' This drastically worsens your position or hangs material.'}${betterMoveText}` };
 };
 
 export default function AnalyzerGame({
     activeTheme,
+    wizardPieceComponents,
     wizardImages,
     gameMode,
     fetchedGames,
-    boardOrientation
+    boardOrientation,
+    isMuted
 }) {
     const [displayFen, setDisplayFen] = useState(STD_FEN);
     const [startFen, setStartFen] = useState(STD_FEN);
@@ -214,7 +257,8 @@ export default function AnalyzerGame({
                 const newHistory = [...prevHistory];
                 const currentMove = newHistory[currentMoveIndex];
 
-                if (currentMove && currentMove.savedEval === undefined) {
+                // Ensure the engine result actually corresponds to the current move's fen!
+                if (currentMove && currentMove.savedEval === undefined && engineState.fen === currentMove.fen) {
                     const cp = engineState.result.cp;
                     const mate = engineState.result.mate;
                     const currentWinProb = calculateWinProb(cp, mate);
@@ -442,6 +486,11 @@ export default function AnalyzerGame({
             setShowHint(false);
             setLegalMoveDots([]);
             if (gameMode === 'absorption') setAbsorptionCapabilities(currentCaps);
+
+            const isCheckmate = gameMode === 'absorption' ? temp2.isCheckmate() : temp2.isCheckmate();
+            const isCheck = gameMode === 'absorption' ? temp2.isKingInCheck(temp2.turn()) : temp2.inCheck();
+            AudioManager.playMoveSound(move, activeTheme.pieces, isCheck, isCheckmate, isMuted);
+
             return true;
         } catch (e) {
             console.error('processMoveAttempt error:', e);
@@ -526,6 +575,10 @@ export default function AnalyzerGame({
             setDisplayFen(newFen);
             setShowHint(false);
             if (gameMode === 'absorption') setAbsorptionCapabilities(currentCaps);
+
+            const isCheckmate = gameMode === 'absorption' ? temp.isCheckmate() : temp.isCheckmate();
+            const isCheck = gameMode === 'absorption' ? temp.isKingInCheck(temp.turn()) : temp.inCheck();
+            AudioManager.playMoveSound(move, activeTheme.pieces, isCheck, isCheckmate, isMuted);
         }
         setPromotionMove(null);
     };
