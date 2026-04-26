@@ -11,23 +11,23 @@ class AudioManager {
 
         if (themePieces === 'wizard') {
             if (isCheckmate) {
-                // If White delivered mate, the current turn is now 'b' (but we can use moveDetails.color which is the color that just moved)
                 if (moveDetails.color === 'w') {
                     play('/sounds/wizard/expecto-patronum.mp3');
                 } else {
                     play('/sounds/wizard/avada-kedavra.mp3');
                 }
             } else if (moveDetails.captured) {
-                // that-felt-good if any piece capturing has the power of a queen
-                if (piecePowers.includes('q')) {
+                // 1. Captured piece with queen moves (satisfying capture)
+                const capturedPowers = moveDetails.capturedPowers || [moveDetails.captured.toLowerCase()];
+                if (capturedPowers.includes('q')) {
                     play('/sounds/wizard/that-felt-good.mp3');
                 } 
-                // diagonally if any piece uses bishop's move to capture
+                // 2. Captured with diagonal move (Bishop power)
                 else if (moveDetails.usedPower === 'b' || (!moveDetails.usedPower && moveDetails.piece === 'b')) {
                     play('/sounds/wizard/diagonally.mp3');
                 } 
-                // bloody-hell if any piece captures with the power of a rook
-                else if (piecePowers.includes('r')) {
+                // 3. Captured with rook move (Rook power)
+                else if (moveDetails.usedPower === 'r' || (!moveDetails.usedPower && moveDetails.piece === 'r')) {
                     play('/sounds/wizard/bloody-hell.mp3');
                 } 
                 // Default capture

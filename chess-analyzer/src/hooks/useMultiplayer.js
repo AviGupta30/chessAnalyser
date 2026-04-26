@@ -97,7 +97,9 @@ export function useMultiplayer() {
             .on('broadcast', { event: 'move' }, ({ payload }) => {
                 console.log('[MP] Received move:', payload.fen);
                 setFen(payload.fen);
-                if (payload.move) setLastMove(payload.move);
+                if (payload.move) {
+                    setLastMove({ ...payload.move, capturedPowers: payload.capturedPowers || [] });
+                }
                 const over = checkGameOver(payload.fen);
                 if (over) { setGameOverMessage(over); setPhase('finished'); }
             })
@@ -309,17 +311,18 @@ export function useMultiplayer() {
     }, [subscribeToChannel]);
 
     // ── SEND MOVE ────────────────────────────────────────────────────────────
-    const sendMove = useCallback(async (newFen, moveObj) => {
+    const sendMove = useCallback(async (newFen, moveObj, capturedPowers = []) => {
         if (!channelRef.current) return;
         console.log('[MP] Sending move:', newFen);
 
-        setLastMove(moveObj || null);
+        const enhancedMove = { ...moveObj, capturedPowers };
+        setLastMove(enhancedMove);
 
         // Broadcast to opponent instantly
         channelRef.current.send({
             type: 'broadcast',
             event: 'move',
-            payload: { fen: newFen, move: moveObj }
+            payload: { fen: newFen, move: moveObj, capturedPowers }
         });
 
         // Persist to DB (fire-and-forget; non-blocking)

@@ -172,9 +172,11 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
     const tryMove = (from, to) => {
         if (!from || !to || from === to) return false;
         try {
-            const { eng: c, isAbsorption: isAbs, mode: cMode } = getEngine(localFen);
+            const { eng: c, isAbsorption: isAbs, mode: cMode, caps } = getEngine(localFen);
             
             let isProm = false;
+            const capturedPowers = isAbs ? (caps[to] || []) : [];
+
             if (isAbs) {
                 const p = c.get(from);
                 isProm = p && p.type === 'p' && c.getLegalMoves(from).some(m => m.to === to && (to[1] === '8' || to[1] === '1'));
@@ -184,7 +186,7 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
 
             if (isProm) {
                 c.move({ from, to, promotion: 'q' }); // validate it works
-                setPromotionMove({ from, to, color: c.turn() });
+                setPromotionMove({ from, to, color: c.turn(), capturedPowers });
                 setMoveFrom('');
                 return true;
             }
@@ -198,7 +200,7 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
             const serializedFen = `${newBaseFen}|${cMode}|${JSON.stringify(newCaps)}`;
             
             setLocalFen(serializedFen);
-            sendMove(serializedFen, move);
+            sendMove(serializedFen, move, capturedPowers);
             setMoveFrom('');
             return true;
         } catch {
@@ -259,7 +261,7 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
                 const newCaps = isAbs ? c.absorptionState.capabilities : {};
                 const serializedFen = `${newBaseFen}|${cMode}|${JSON.stringify(newCaps)}`;
                 setLocalFen(serializedFen); 
-                sendMove(serializedFen, move); 
+                sendMove(serializedFen, move, promotionMove.capturedPowers || []); 
             }
         } catch {}
         setPromotionMove(null);

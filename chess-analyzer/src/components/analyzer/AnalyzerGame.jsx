@@ -566,6 +566,7 @@ export default function AnalyzerGame({
 
             // Re-sync before actually executing so we work on a clean state
             const temp2 = getActiveEngine();
+            const capturedPowers = gameMode === 'absorption' ? (temp2.absorptionState.capabilities[targetSquare] || []) : [];
             const move = temp2.move({ from: sourceSquare, to: targetSquare });
 
             if (!move) {
@@ -579,7 +580,7 @@ export default function AnalyzerGame({
                 : {};
 
             const newHistory = history.slice(0, currentMoveIndex + 1);
-            newHistory.push({ ...move, fen: newFen, capabilities: currentCaps });
+            newHistory.push({ ...move, fen: newFen, capabilities: currentCaps, capturedPowers });
 
             setHistory(newHistory);
             setCurrentMoveIndex(newHistory.length - 1);
@@ -591,7 +592,7 @@ export default function AnalyzerGame({
             const isCheckmate = gameMode === 'absorption' ? temp2.isCheckmate() : temp2.isCheckmate();
             const isCheck = gameMode === 'absorption' ? temp2.isKingInCheck(temp2.turn()) : temp2.inCheck();
             const piecePowers = gameMode === 'absorption' ? [...(currentCaps[move.to] || []), move.piece.toLowerCase()] : [move.piece.toLowerCase()];
-            AudioManager.playMoveSound(move, activeTheme.pieces, isCheck, isCheckmate, isMuted, piecePowers);
+            AudioManager.playMoveSound({ ...move, capturedPowers }, activeTheme.pieces, isCheck, isCheckmate, isMuted, piecePowers);
 
             return true;
         } catch (e) {
