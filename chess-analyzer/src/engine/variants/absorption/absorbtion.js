@@ -223,9 +223,9 @@ class AbsorptionEngine {
       this.chess.put({ type: spoofType, color: movingPiece.color }, from);
 
       try {
-        const promParam = (movingPiece.type === 'p' || spoofType === 'p')
-          ? promotion
-          : undefined;
+        const isPawnSpoof = spoofType === 'p';
+        const promParam = isPawnSpoof ? (promotion || 'q') : undefined;
+        
         successMove = this.chess.move({ from, to, promotion: promParam });
         if (successMove) {
           usedPromotion = successMove.promotion || null;
@@ -246,8 +246,11 @@ class AbsorptionEngine {
     // chess.js has now advanced the turn. The piece at `to` may be the wrong
     // type (spoofed). Fix it back to the real piece type.
     let finalType = movingPiece.type;
+    let actualPromotion = undefined;
+
     if (movingPiece.type === 'p' && (to[1] === '8' || to[1] === '1')) {
-      finalType = usedPromotion || promotion;
+      finalType = usedPromotion || promotion || 'q';
+      actualPromotion = finalType;
     }
 
     // chess.js put the spoofed piece at `to` — overwrite with real type
@@ -262,7 +265,14 @@ class AbsorptionEngine {
       this.absorptionState.movePiece(from, to, null, []);
     }
 
-    return { ...successMove, piece: movingPiece.type, promotion: finalType !== movingPiece.type ? finalType : successMove.promotion };
+    const returnMove = { ...successMove, piece: movingPiece.type };
+    if (actualPromotion) {
+      returnMove.promotion = actualPromotion;
+    } else {
+      delete returnMove.promotion;
+    }
+
+    return returnMove;
   }
 
   /**

@@ -48,6 +48,43 @@ const getMaterialScore = (fen) => {
     return { w: whiteMaterial, b: blackMaterial };
 };
 
+const getCapturedPieces = (fen) => {
+    const board = fen.split(' ')[0];
+    const initialCounts = { P: 8, N: 2, B: 2, R: 2, Q: 1, p: 8, n: 2, b: 2, r: 2, q: 1 };
+    const currentCounts = { P: 0, N: 0, B: 0, R: 0, Q: 0, p: 0, n: 0, b: 0, r: 0, q: 0 };
+    for (let char of board) {
+        if (currentCounts[char] !== undefined) currentCounts[char]++;
+    }
+
+    const capturedByWhite = [];
+    const capturedByBlack = [];
+    const pieces = ['q', 'r', 'b', 'n', 'p'];
+    
+    pieces.forEach(p => {
+        const diff = initialCounts[p] - currentCounts[p];
+        if (diff > 0) {
+            for (let i = 0; i < diff; i++) capturedByWhite.push(p);
+        }
+    });
+
+    pieces.forEach(p => {
+        const upper = p.toUpperCase();
+        const diff = initialCounts[upper] - currentCounts[upper];
+        if (diff > 0) {
+            for (let i = 0; i < diff; i++) capturedByBlack.push(p);
+        }
+    });
+
+    const mat = getMaterialScore(fen);
+    const whiteAdvantage = mat.w - mat.b;
+    const blackAdvantage = mat.b - mat.w;
+
+    return {
+        white: { pieces: capturedByWhite, adv: whiteAdvantage > 0 ? whiteAdvantage : 0 },
+        black: { pieces: capturedByBlack, adv: blackAdvantage > 0 ? blackAdvantage : 0 }
+    };
+};
+
 const calculateWinProb = (cp, mate) => {
     if (mate !== null && mate !== undefined) return mate > 0 ? 100 : 0;
     if (cp === undefined || cp === null) return 50;
@@ -163,39 +200,51 @@ export default function AnalyzerGame({
         const buildPieceComponent = (basePiece) => ({ square }) => {
             let src = wizardImages[basePiece];
             if (gameMode === 'absorption' && absorptionCapabilities[square]) {
-                const caps = absorptionCapabilities[square];
+                const caps = absorptionCapabilities[square] || [];
                 const color = basePiece[0]; // 'w' or 'b'
-                const type = basePiece[1]; // 'P', 'N', 'B', 'R', 'Q', 'K'
+                const trueBase = basePiece[1]; // 'P', 'N', 'B', 'R', 'Q', 'K'
                 
-                const allTypes = [...caps, type.toLowerCase()];
-                const hasP = allTypes.includes('p');
-                const hasR = allTypes.includes('r');
-                const hasB = allTypes.includes('b');
-                const hasN = allTypes.includes('n');
-                const hasQ = allTypes.includes('q');
-                
-                const effectiveR = hasR || hasQ;
-                const effectiveB = hasB || hasQ;
-                const effectiveN = hasN;
-                
-                let keySuffix = null;
-                if (effectiveR && effectiveB && effectiveN) {
-                    keySuffix = 'Q_N';
-                } else if (effectiveR && effectiveB) {
-                    keySuffix = 'Q';
-                } else if (hasP) {
-                    if (effectiveR && effectiveN) keySuffix = 'P_N_R';
-                    else if (effectiveB && effectiveN) keySuffix = 'P_B_N';
-                    else if (effectiveR) keySuffix = 'P_R';
-                    else if (effectiveB) keySuffix = 'P_B';
-                    else if (effectiveN) keySuffix = 'P_N';
-                } else {
-                    if (effectiveR && effectiveN) keySuffix = 'R_N';
-                    else if (effectiveB && effectiveN) keySuffix = 'B_N';
+                let allPowers = Array.from(new Set([...caps, trueBase.toLowerCase()]));
+
+                // Auto-Evolution (The Queen Rule)
+                if (allPowers.includes('r') && allPowers.includes('b')) {
+                    allPowers = allPowers.filter(p => p !== 'r' && p !== 'b');
+                    if (!allPowers.includes('q')) allPowers.push('q');
                 }
 
-                if (keySuffix) {
-                    src = wizardImages[`${color}${keySuffix}`] || src;
+                let visualBase = trueBase;
+
+                // The Alias Rule (Symmetric Majors)
+                if (trueBase === 'N') {
+                    if (allPowers.includes('q')) visualBase = 'Q';
+                    else if (allPowers.includes('r')) visualBase = 'R';
+                    else if (allPowers.includes('b')) visualBase = 'B';
+                }
+
+                let remainingPowers = allPowers.filter(p => p !== visualBase.toLowerCase());
+                remainingPowers.sort();
+
+                const buildKey = (powers) => {
+                    if (powers.length === 0) return `${color}${visualBase}`;
+                    const suffix = powers.map(p => p.toUpperCase()).join('_');
+                    return `${color}${visualBase}_${suffix}`;
+                };
+
+                let idealKey = buildKey(remainingPowers);
+                
+                if (wizardImages[idealKey]) {
+                    src = wizardImages[idealKey];
+                } else if (remainingPowers.length > 1) {
+                    // Graceful fallback strip last power
+                    const fallbackPowers = remainingPowers.slice(0, -1);
+                    const fallbackKey = buildKey(fallbackPowers);
+                    if (wizardImages[fallbackKey]) {
+                        src = wizardImages[fallbackKey];
+                    } else {
+                        src = wizardImages[`${color}${trueBase}`] || src;
+                    }
+                } else {
+                    src = wizardImages[`${color}${trueBase}`] || src;
                 }
             }
             
@@ -242,6 +291,30 @@ export default function AnalyzerGame({
             return null;
         }
     }, [displayFen, gameMode, currentMoveIndex, history]);
+
+    const capturedData = useMemo(() => getCapturedPieces(displayFen), [displayFen]);
+
+    const renderCapturedPieces = (color) => {
+        const data = color === 'white' ? capturedData.white : capturedData.black;
+        if (data.pieces.length === 0 && data.adv === 0) return <div style={{ height: '24px' }} />;
+        
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', height: '24px', opacity: 0.9 }}>
+                {data.pieces.map((p, i) => {
+                    const pieceKey = color === 'white' ? `b${p.toUpperCase()}` : `w${p.toUpperCase()}`;
+                    const isWizard = activeTheme.pieces === 'wizard' && wizardImages;
+                    return isWizard ? (
+                        <img key={i} src={wizardImages[pieceKey]} alt={p} style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
+                    ) : (
+                        <span key={i} style={{ fontSize: '1.2rem', color: color === 'white' ? '#000' : '#fff', filter: color === 'white' ? 'none' : 'drop-shadow(0 0 1px rgba(0,0,0,0.5))' }}>
+                            {UNICODE_PIECES[pieceKey]}
+                        </span>
+                    );
+                })}
+                {data.adv > 0 && <span style={{ marginLeft: '0.3rem', fontSize: '0.8rem', fontWeight: 'bold', color: activeTheme.global.text }}>+{data.adv}</span>}
+            </div>
+        );
+    };
 
     useEffect(() => {
         if (gameMode === 'standard' && displayFen && (engineState.status === 'ready' || engineState.status === 'analysing')) {
@@ -433,9 +506,9 @@ export default function AnalyzerGame({
 
             let possibleMoves = [];
             let isPromotion = false;
+            const actualPiece = temp.get(sourceSquare);
 
             if (gameMode === 'absorption') {
-                const actualPiece = temp.get(sourceSquare);
                 possibleMoves = temp.getLegalMoves(sourceSquare);
                 isPromotion = possibleMoves.some(
                     m => m.to === targetSquare &&
@@ -445,7 +518,7 @@ export default function AnalyzerGame({
             } else {
                 possibleMoves = temp.moves({ verbose: true });
                 isPromotion = possibleMoves.some(
-                    m => m.from === sourceSquare && m.to === targetSquare && m.flags.includes('p')
+                    m => m.from === sourceSquare && m.to === targetSquare && m.flags.includes('p') && actualPiece && actualPiece.type === 'p'
                 );
             }
 
@@ -771,8 +844,15 @@ export default function AnalyzerGame({
                         </div>
                     )}
 
+                    <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'flex-start' }}>
+                        {renderCapturedPieces(boardOrientation === 'white' ? 'black' : 'white')}
+                    </div>
 
                     <Chessboard options={boardOptions} />
+
+                    <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-start' }}>
+                        {renderCapturedPieces(boardOrientation === 'white' ? 'white' : 'black')}
+                    </div>
 
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1rem', opacity: (isPracticeMode || isAutoPlaying) ? 0.3 : 1, pointerEvents: (isPracticeMode || isAutoPlaying) ? 'none' : 'auto' }}>
                         <button onClick={() => goToMove(-1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>⏮</button>
