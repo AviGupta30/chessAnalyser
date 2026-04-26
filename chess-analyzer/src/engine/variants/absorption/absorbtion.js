@@ -211,6 +211,7 @@ class AbsorptionEngine {
     const savedFen = this.chess.fen();
     let successMove = null;
     let usedPromotion = null;
+    let usedPower = null;
 
     for (const spoofType of uniqueTypes) {
       // Pawns cannot move from 1st or 8th rank — chess.js will crash
@@ -229,6 +230,7 @@ class AbsorptionEngine {
         successMove = this.chess.move({ from, to, promotion: promParam });
         if (successMove) {
           usedPromotion = successMove.promotion || null;
+          usedPower = spoofType;
           break;
         }
       } catch (_) {
@@ -265,7 +267,7 @@ class AbsorptionEngine {
       this.absorptionState.movePiece(from, to, null, []);
     }
 
-    const returnMove = { ...successMove, piece: movingPiece.type };
+    const returnMove = { ...successMove, piece: movingPiece.type, usedPower };
     if (actualPromotion) {
       returnMove.promotion = actualPromotion;
     } else {

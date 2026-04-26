@@ -206,18 +206,19 @@ export default function AnalyzerGame({
                 
                 let allPowers = Array.from(new Set([...caps, trueBase.toLowerCase()]));
 
-                // Auto-Evolution (The Queen Rule)
-                if (allPowers.includes('r') && allPowers.includes('b')) {
+                // Auto-Evolution & Redundancy (The Queen Rule)
+                if (allPowers.includes('q') || (allPowers.includes('r') && allPowers.includes('b'))) {
                     allPowers = allPowers.filter(p => p !== 'r' && p !== 'b');
                     if (!allPowers.includes('q')) allPowers.push('q');
                 }
 
                 let visualBase = trueBase;
 
-                // The Alias Rule (Symmetric Majors)
-                if (trueBase === 'N') {
-                    if (allPowers.includes('q')) visualBase = 'Q';
-                    else if (allPowers.includes('r')) visualBase = 'R';
+                // The Alias Rule: Q dominates all bases. N submits to Majors.
+                if (allPowers.includes('q')) {
+                    visualBase = 'Q';
+                } else if (trueBase === 'N') {
+                    if (allPowers.includes('r')) visualBase = 'R';
                     else if (allPowers.includes('b')) visualBase = 'B';
                 }
 
@@ -523,11 +524,21 @@ export default function AnalyzerGame({
             }
 
             if (isPromotion) {
-                const validPromotion = possibleMoves.find(
-                    m => (m.from ? m.from === sourceSquare : true) &&
-                    m.to === targetSquare &&
-                    (m.promotion === 'q' || m.flags?.includes('p'))
-                );
+                let validPromotion;
+                if (gameMode === 'absorption') {
+                    // In absorption, ANY legal move by a pawn to the 8th/1st rank is a valid promotion,
+                    // even if it used a Knight/Rook jump (which wouldn't have 'q' in its pseudo move).
+                    validPromotion = possibleMoves.find(
+                        m => (m.from ? m.from === sourceSquare : true) && m.to === targetSquare
+                    );
+                } else {
+                    validPromotion = possibleMoves.find(
+                        m => (m.from ? m.from === sourceSquare : true) &&
+                        m.to === targetSquare &&
+                        (m.promotion === 'q' || m.flags?.includes('p'))
+                    );
+                }
+
                 if (!validPromotion) {
                     flashInvalidMove(sourceSquare, targetSquare);
                     return false;
@@ -562,7 +573,8 @@ export default function AnalyzerGame({
 
             const isCheckmate = gameMode === 'absorption' ? temp2.isCheckmate() : temp2.isCheckmate();
             const isCheck = gameMode === 'absorption' ? temp2.isKingInCheck(temp2.turn()) : temp2.inCheck();
-            AudioManager.playMoveSound(move, activeTheme.pieces, isCheck, isCheckmate, isMuted);
+            const piecePowers = gameMode === 'absorption' ? [...(currentCaps[move.to] || []), move.piece.toLowerCase()] : [move.piece.toLowerCase()];
+            AudioManager.playMoveSound(move, activeTheme.pieces, isCheck, isCheckmate, isMuted, piecePowers);
 
             return true;
         } catch (e) {
@@ -651,7 +663,8 @@ export default function AnalyzerGame({
 
             const isCheckmate = gameMode === 'absorption' ? temp.isCheckmate() : temp.isCheckmate();
             const isCheck = gameMode === 'absorption' ? temp.isKingInCheck(temp.turn()) : temp.inCheck();
-            AudioManager.playMoveSound(move, activeTheme.pieces, isCheck, isCheckmate, isMuted);
+            const piecePowers = gameMode === 'absorption' ? [...(currentCaps[move.to] || []), move.piece.toLowerCase()] : [move.piece.toLowerCase()];
+            AudioManager.playMoveSound(move, activeTheme.pieces, isCheck, isCheckmate, isMuted, piecePowers);
         }
         setPromotionMove(null);
     };
