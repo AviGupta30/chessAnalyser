@@ -9,6 +9,23 @@ import AudioManager from '../../utils/audioManager';
 
 const STD_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
+// Responsive board width: full viewport on mobile, 600px cap on desktop
+const useResponsiveBoardWidth = () => {
+    const getBoardWidth = () => {
+        const vw = window.innerWidth;
+        if (vw <= 768) return vw; // full width on mobile
+        if (vw <= 1100) return Math.min(vw * 0.5, 520); // ~50vw on tablet
+        return 600; // desktop
+    };
+    const [boardWidth, setBoardWidth] = useState(getBoardWidth);
+    useEffect(() => {
+        const onResize = () => setBoardWidth(getBoardWidth());
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+    return boardWidth;
+};
+
 const UNICODE_PIECES = {
     wQ: '♕', wR: '♖', wB: '♗', wN: '♘',
     bQ: '♛', bR: '♜', bB: '♝', bN: '♞'
@@ -786,6 +803,8 @@ export default function AnalyzerGame({
         };
     });
 
+    const boardWidth = useResponsiveBoardWidth();
+
     const boardOptions = {
         id: "analyzer-board",
         position: displayFen,
@@ -802,20 +821,23 @@ export default function AnalyzerGame({
             : isPracticeMode
                 ? (new Chess(displayFen).turn() === userPracticeColor)
                 : true,
-        boardStyle: { borderRadius: '4px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' },
+        boardStyle: { borderRadius: '4px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', width: '100%' },
         darkSquareStyle: { backgroundColor: activeTheme.board.dark },
         lightSquareStyle: { backgroundColor: activeTheme.board.light },
-        squareStyles: dynamicSquareStyles
+        squareStyles: dynamicSquareStyles,
+        boardWidth: boardWidth
     };
 
     if (activeTheme.pieces === 'wizard') {
         boardOptions.pieces = dynamicWizardPieces;
     }
 
+    const [mobileTab, setMobileTab] = useState('moves'); // 'moves' | 'coach' | 'engine'
+
     return (
-        <main style={{ display: 'flex', gap: '2rem', justifyContent: 'center', alignItems: 'flex-start' }}>
+        <main className="analyzer-layout" style={{ display: 'flex', gap: '2rem', justifyContent: 'center', alignItems: 'flex-start' }}>
             {fetchedGames.length > 0 && (
-                <div style={{ width: '250px', maxHeight: '70vh', overflowY: 'auto', background: activeTheme.global.surface, padding: '1rem', borderRadius: '8px', border: `1px solid ${activeTheme.global.border}` }}>
+                <div className="games-list-panel" style={{ width: '250px', maxHeight: '70vh', overflowY: 'auto', background: activeTheme.global.surface, padding: '1rem', borderRadius: '8px', border: `1px solid ${activeTheme.global.border}` }}>
                     <h3 style={{ marginTop: 0 }}>Games</h3>
                     {fetchedGames.map((g, i) => (
                         <div key={i} onClick={() => loadGamePgn(g.pgn)} style={{ padding: '0.5rem', marginBottom: '0.5rem', background: activeTheme.global.bg, borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}>
@@ -825,13 +847,15 @@ export default function AnalyzerGame({
                 </div>
             )}
 
-            <div style={{ display: 'flex', gap: '1rem', height: '600px' }}>
-                <EvalBar result={engineState.result} status={gameMode === 'absorption' ? 'disabled' : engineState.status} />
-                <div style={{ width: '600px', position: 'relative' }}>
+            <div className="board-column" style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                <div className="eval-bar-wrapper">
+                    <EvalBar result={engineState.result} status={gameMode === 'absorption' ? 'disabled' : engineState.status} />
+                </div>
+                <div className="board-wrapper" style={{ position: 'relative', width: boardWidth, flexShrink: 0 }}>
 
                     {gameStatus && (
                         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', zIndex: 10, display: 'flex', justifyContent: 'center', alignItems: 'center', pointerEvents: 'none', borderRadius: '4px' }}>
-                            <div style={{ background: activeTheme.global.surface, color: activeTheme.global.accent, padding: '1.5rem 3rem', borderRadius: '12px', fontSize: '2.5rem', fontWeight: 'bold', border: `2px solid ${activeTheme.global.border}`, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '2px', textAlign: 'center' }}>
+                            <div style={{ background: activeTheme.global.surface, color: activeTheme.global.accent, padding: '1rem 2rem', borderRadius: '12px', fontSize: 'clamp(1.2rem, 5vw, 2.5rem)', fontWeight: 'bold', border: `2px solid ${activeTheme.global.border}`, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '2px', textAlign: 'center' }}>
                                 {gameStatus}
                             </div>
                         </div>
@@ -839,20 +863,20 @@ export default function AnalyzerGame({
 
                     {promotionMove && (
                         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 20, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '4px' }}>
-                            <div style={{ background: activeTheme.global.surface, padding: '2rem', borderRadius: '12px', border: `1px solid ${activeTheme.global.border}`, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', textAlign: 'center' }}>
-                                <h3 style={{ marginTop: 0, marginBottom: '1.5rem', color: activeTheme.global.text }}>Promote Pawn To:</h3>
-                                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                            <div style={{ background: activeTheme.global.surface, padding: '1.5rem', borderRadius: '12px', border: `1px solid ${activeTheme.global.border}`, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', textAlign: 'center' }}>
+                                <h3 style={{ marginTop: 0, marginBottom: '1rem', color: activeTheme.global.text, fontSize: 'clamp(0.9rem, 3vw, 1.2rem)' }}>Promote Pawn To:</h3>
+                                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
                                     {['q', 'r', 'b', 'n'].map(p => {
                                         const pieceKey = `${promotionMove.color}${p.toUpperCase()}`;
                                         const imgSrc = activeTheme.pieces === 'wizard' ? wizardImages[pieceKey] : null;
                                         return (
-                                            <div key={p} onClick={() => executePromotion(p)} style={{ width: '70px', height: '70px', cursor: 'pointer', background: activeTheme.board.light, borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'transform 0.2s', border: `2px solid ${activeTheme.global.border}` }} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
-                                                {activeTheme.pieces === 'wizard' ? <img src={imgSrc} alt={pieceKey} style={{ width: '80%', height: '80%', objectFit: 'contain' }} /> : <span style={{ fontSize: '3rem', color: '#000' }}>{UNICODE_PIECES[pieceKey]}</span>}
+                                            <div key={p} onClick={() => executePromotion(p)} style={{ width: 'clamp(52px, 13vw, 70px)', height: 'clamp(52px, 13vw, 70px)', cursor: 'pointer', background: activeTheme.board.light, borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'transform 0.2s', border: `2px solid ${activeTheme.global.border}` }} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                                                {activeTheme.pieces === 'wizard' ? <img src={imgSrc} alt={pieceKey} style={{ width: '80%', height: '80%', objectFit: 'contain' }} /> : <span style={{ fontSize: 'clamp(1.8rem, 6vw, 3rem)', color: '#000' }}>{UNICODE_PIECES[pieceKey]}</span>}
                                             </div>
                                         );
                                     })}
                                 </div>
-                                <button onClick={cancelPromotion} style={{ marginTop: '1.5rem', padding: '0.5rem 2rem', cursor: 'pointer', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '1rem', fontWeight: 'bold' }}>Cancel</button>
+                                <button onClick={cancelPromotion} style={{ marginTop: '1rem', padding: '0.5rem 2rem', cursor: 'pointer', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '1rem', fontWeight: 'bold' }}>Cancel</button>
                             </div>
                         </div>
                     )}
@@ -867,11 +891,11 @@ export default function AnalyzerGame({
                         {renderCapturedPieces(boardOrientation === 'white' ? 'white' : 'black')}
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1rem', opacity: (isPracticeMode || isAutoPlaying) ? 0.3 : 1, pointerEvents: (isPracticeMode || isAutoPlaying) ? 'none' : 'auto' }}>
-                        <button onClick={() => goToMove(-1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>⏮</button>
-                        <button onClick={() => goToMove(currentMoveIndex - 1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>◀</button>
-                        <button onClick={() => goToMove(currentMoveIndex + 1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>▶</button>
-                        <button onClick={() => goToMove(history.length - 1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>⏭</button>
+                    <div className="move-controls" style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1rem', color: activeTheme.global.text, opacity: (isPracticeMode || isAutoPlaying) ? 0.3 : 1, pointerEvents: (isPracticeMode || isAutoPlaying) ? 'none' : 'auto' }}>
+                        <button onClick={() => goToMove(-1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.3rem' }}>⏮</button>
+                        <button onClick={() => goToMove(currentMoveIndex - 1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.3rem' }}>◀</button>
+                        <button onClick={() => goToMove(currentMoveIndex + 1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.3rem' }}>▶</button>
+                        <button onClick={() => goToMove(history.length - 1)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', cursor: 'pointer', fontSize: '1.3rem' }}>⏭</button>
                     </div>
                 </div>
             </div>
@@ -890,7 +914,28 @@ export default function AnalyzerGame({
                 setShowHint={setShowHint}
                 playContinuation={playContinuation}
                 isAutoPlaying={isAutoPlaying}
+                mobileTab={mobileTab}
             />
+
+            {/* Mobile Bottom Nav */}
+            <nav className="mobile-bottom-nav" style={{ background: activeTheme.global.surface }}>
+                <button className={mobileTab === 'moves' ? 'active' : ''} onClick={() => setMobileTab('moves')} style={{ color: mobileTab === 'moves' ? activeTheme.global.accent : 'rgba(255,255,255,0.6)' }}>
+                    <span className="icon">📋</span>
+                    Moves
+                </button>
+                <button className={mobileTab === 'coach' ? 'active' : ''} onClick={() => setMobileTab('coach')} style={{ color: mobileTab === 'coach' ? activeTheme.global.accent : 'rgba(255,255,255,0.6)' }}>
+                    <span className="icon">🎓</span>
+                    Coach
+                </button>
+                <button className={mobileTab === 'engine' ? 'active' : ''} onClick={() => setMobileTab('engine')} style={{ color: mobileTab === 'engine' ? activeTheme.global.accent : 'rgba(255,255,255,0.6)' }}>
+                    <span className="icon">⚡</span>
+                    Engine
+                </button>
+                <button onClick={togglePractice} style={{ color: isPracticeMode ? '#ef4444' : 'rgba(255,255,255,0.6)' }}>
+                    <span className="icon">{isPracticeMode ? '🛑' : '🤖'}</span>
+                    {isPracticeMode ? 'Stop' : 'Practice'}
+                </button>
+            </nav>
         </main>
     );
 }

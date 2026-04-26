@@ -111,52 +111,56 @@ export default function App() {
     }, []);
 
     return (
-        <div style={{ minHeight: '100vh', background: activeTheme.global.bg, color: activeTheme.global.text, fontFamily: 'system-ui, sans-serif', padding: '1rem', transition: 'background 0.3s ease, color 0.3s ease' }}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: `1px solid ${activeTheme.global.border}`, flexWrap: 'wrap', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <h2 style={{ margin: 0, fontSize: '1.2rem' }}>♞ Chess Analyzer</h2>
+        <div
+            className="app-root"
+            style={{ minHeight: '100vh', background: activeTheme.global.bg, color: activeTheme.global.text, fontFamily: 'system-ui, sans-serif', padding: '1rem', transition: 'background 0.3s ease, color 0.3s ease' }}
+        >
+            <header
+                className="app-header"
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: `1px solid ${activeTheme.global.border}`, background: activeTheme.global.bg, flexWrap: 'wrap', gap: '0.75rem' }}
+            >
+                <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <h2 className="header-title" style={{ margin: 0 }}>♞ Chess</h2>
 
                     <div style={{ display: 'flex', background: activeTheme.global.surface, border: `1px solid ${activeTheme.global.border}`, borderRadius: '8px', overflow: 'hidden' }}>
-                        <button onClick={() => setAppMode('analyzer')} style={{ padding: '0.4rem 0.9rem', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '0.8rem', background: appMode === 'analyzer' ? activeTheme.global.accent : 'transparent', color: appMode === 'analyzer' ? '#fff' : activeTheme.global.text }}>📊 Analyzer</button>
-                        <button onClick={() => setAppMode('multiplayer')} style={{ padding: '0.4rem 0.9rem', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '0.8rem', background: appMode === 'multiplayer' ? activeTheme.global.accent : 'transparent', color: appMode === 'multiplayer' ? '#fff' : activeTheme.global.text }}>♟️ Play vs Friend</button>
+                        <button onClick={() => setAppMode('analyzer')} style={{ padding: '0.4rem 0.9rem', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '0.8rem', background: appMode === 'analyzer' ? activeTheme.global.accent : 'transparent', color: appMode === 'analyzer' ? '#fff' : activeTheme.global.text }}>📊 Analyze</button>
+                        <button onClick={() => setAppMode('multiplayer')} style={{ padding: '0.4rem 0.9rem', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '0.8rem', background: appMode === 'multiplayer' ? activeTheme.global.accent : 'transparent', color: appMode === 'multiplayer' ? '#fff' : activeTheme.global.text }}>♟️ Play</button>
                     </div>
 
                     {appMode === 'analyzer' && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: activeTheme.global.surface, padding: '0.5rem 1rem', borderRadius: '8px', border: `1px solid ${activeTheme.global.border}` }}>
-                            <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: activeTheme.global.text, opacity: 0.8, fontWeight: 'bold' }}>Variant:</span>
-                            <select value={gameMode} onChange={(e) => setGameMode(e.target.value)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', outline: 'none', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: activeTheme.global.surface, padding: '0.4rem 0.75rem', borderRadius: '8px', border: `1px solid ${activeTheme.global.border}` }}>
+                            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: activeTheme.global.text, opacity: 0.8, fontWeight: 'bold' }}>Mode:</span>
+                            <select value={gameMode} onChange={(e) => setGameMode(e.target.value)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', outline: 'none', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
                                 <option value="standard" style={{ background: '#1e293b' }}>Standard</option>
                                 <option value="absorption" style={{ background: '#1e293b' }}>Absorption</option>
                             </select>
                         </div>
                     )}
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: activeTheme.global.surface, padding: '0.5rem 1rem', borderRadius: '8px', border: `1px solid ${activeTheme.global.border}` }}>
-                        <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: activeTheme.global.text, opacity: 0.8, fontWeight: 'bold' }}>Theme:</span>
-                        <select value={currentThemeKey} onChange={(e) => setCurrentThemeKey(e.target.value)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', outline: 'none', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: activeTheme.global.surface, padding: '0.4rem 0.75rem', borderRadius: '8px', border: `1px solid ${activeTheme.global.border}` }}>
+                        <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: activeTheme.global.text, opacity: 0.8, fontWeight: 'bold' }}>Theme:</span>
+                        <select value={currentThemeKey} onChange={(e) => setCurrentThemeKey(e.target.value)} style={{ background: 'transparent', color: activeTheme.global.text, border: 'none', outline: 'none', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}>
                             {Object.entries(THEMES).map(([key, theme]) => <option key={key} value={key} style={{ background: '#1e293b' }}>{theme.name}</option>)}
                         </select>
                     </div>
 
-                    <button 
-                        onClick={() => setIsMuted(!isMuted)} 
-                        style={{ background: activeTheme.global.surface, border: `1px solid ${activeTheme.global.border}`, borderRadius: '8px', padding: '0.5rem', cursor: 'pointer', fontSize: '1.2rem' }}
-                        title={isMuted ? "Unmute Sounds" : "Mute Sounds"}
+                    <button
+                        onClick={() => setIsMuted(!isMuted)}
+                        style={{ background: activeTheme.global.surface, border: `1px solid ${activeTheme.global.border}`, borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: 'pointer', fontSize: '1.1rem', lineHeight: 1 }}
+                        title={isMuted ? 'Unmute' : 'Mute'}
                     >
                         {isMuted ? '🔇' : '🔊'}
                     </button>
                 </div>
 
                 {appMode === 'analyzer' && (
-                    <>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                         <form onSubmit={handleFetch} style={{ display: 'flex', gap: '0.5rem' }}>
-                            <input type="text" placeholder="Chess.com Username" value={username} onChange={e => setUsername(e.target.value)} style={{ padding: '0.5rem', borderRadius: '4px', background: activeTheme.global.surface, border: `1px solid ${activeTheme.global.border}`, color: activeTheme.global.text }} />
-                            <button type="submit" disabled={isFetching} style={{ padding: '0.5rem 1rem', background: activeTheme.global.accent, border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}>Fetch</button>
+                            <input type="text" placeholder="Chess.com Username" value={username} onChange={e => setUsername(e.target.value)} style={{ padding: '0.4rem 0.6rem', borderRadius: '4px', background: activeTheme.global.surface, border: `1px solid ${activeTheme.global.border}`, color: activeTheme.global.text, fontSize: '0.9rem', minWidth: 0, width: '140px' }} />
+                            <button type="submit" disabled={isFetching} style={{ padding: '0.4rem 0.75rem', background: activeTheme.global.accent, border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>Fetch</button>
                         </form>
-                        <div>
-                            <button onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')} style={{ marginRight: '1rem', padding: '0.5rem', background: 'transparent', color: activeTheme.global.text, border: `1px solid ${activeTheme.global.border}`, borderRadius: '4px', cursor: 'pointer' }}>Flip</button>
-                        </div>
-                    </>
+                        <button onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')} style={{ padding: '0.4rem 0.75rem', background: 'transparent', color: activeTheme.global.text, border: `1px solid ${activeTheme.global.border}`, borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>🔃 Flip</button>
+                    </div>
                 )}
             </header>
 

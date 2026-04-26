@@ -69,4 +69,308 @@ button:disabled {
 @keyframes pulse {
     0%, 100% { opacity: 1;   }
     50%       { opacity: 0.4; }
+}
+
+/* ═══════════════════════════════
+   MOBILE BOTTOM NAVBAR
+   ═══════════════════════════════ */
+.mobile-bottom-nav {
+    display: none;
+}
+
+/* ═══════════════════════════════
+   APP HEADER - MOBILE
+   ═══════════════════════════════ */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.header-title {
+    margin: 0;
+    font-size: 1.2rem;
+    white-space: nowrap;
+}
+
+/* ═══════════════════════════════
+   MAIN GAME LAYOUT
+   ═══════════════════════════════ */
+.analyzer-layout {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.board-column {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.board-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.move-controls {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.move-controls button {
+    background: transparent;
+    border: none;
+    font-size: 1.4rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+
+.move-controls button:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+/* ═══════════════════════════════
+   SIDEBAR
+   ═══════════════════════════════ */
+.game-sidebar {
+    width: 300px;
+    padding: 1rem;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+/* Mobile tab panel hidden by default */
+.sidebar-tab-panel {
+    display: none;
+}
+
+/* ═══════════════════════════════
+   MOBILE BREAKPOINT ≤ 768px
+   ═══════════════════════════════ */
+@media (max-width: 768px) {
+
+    /* ---- Root App ---- */
+    .app-root {
+        padding: 0 !important;
+        padding-bottom: 60px !important; /* space for bottom nav */
+        overflow-x: hidden;
+    }
+
+    /* ---- Header ---- */
+    .app-header {
+        padding: 0.6rem 0.75rem;
+        margin-bottom: 0;
+        border-radius: 0;
+        gap: 0.5rem;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .header-left {
+        gap: 0.5rem;
+    }
+
+    .header-title {
+        font-size: 1rem;
+    }
+
+    .header-controls-group {
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+
+    .header-controls-group select,
+    .header-controls-group input {
+        font-size: 0.85rem;
+    }
+
+    /* ---- Games list: hide on mobile ---- */
+    .games-list-panel {
+        display: none !important;
+    }
+
+    /* ---- Main layout: vertical stack ---- */
+    .analyzer-layout {
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        padding: 0;
+    }
+
+    /* ---- Board column ---- */
+    .board-column {
+        flex-direction: column;
+        width: 100%;
+        gap: 0;
+    }
+
+    /* ---- EvalBar: hide on mobile ---- */
+    .eval-bar-wrapper {
+        display: none !important;
+    }
+
+    /* ---- Board wrapper ---- */
+    .board-wrapper {
+        width: 100vw !important;
+        max-width: 100vw;
+    }
+
+    /* ---- Move controls ---- */
+    .move-controls {
+        margin: 0;
+        padding: 0.5rem 0;
+        gap: 0;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .move-controls button {
+        flex: 1;
+        font-size: 1.3rem;
+        padding: 0.6rem;
+        border-radius: 0;
+        border-right: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .move-controls button:last-child {
+        border-right: none;
+    }
+
+    /* ---- Mobile Bottom Nav ---- */
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        z-index: 200;
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .mobile-bottom-nav button {
+        flex: 1;
+        background: transparent;
+        border: none;
+        border-right: 1px solid rgba(255,255,255,0.08);
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        font-size: 0.6rem;
+        padding: 0.3rem;
+        cursor: pointer;
+        color: rgba(255,255,255,0.7);
+        transition: background 0.15s;
+    }
+
+    .mobile-bottom-nav button:last-child {
+        border-right: none;
+    }
+
+    .mobile-bottom-nav button.active {
+        color: #fff;
+        background: rgba(255,255,255,0.07);
+    }
+
+    .mobile-bottom-nav button span.icon {
+        font-size: 1.2rem;
+        line-height: 1;
+    }
+
+    /* ---- Sidebar: becomes tabbed content panel below board ---- */
+    .game-sidebar {
+        width: 100% !important;
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        padding: 0.75rem !important;
+        gap: 0.75rem !important;
+    }
+
+    /* Tab system: only show active panel */
+    .sidebar-tab-panel {
+        display: block;
+    }
+}
+
+/* ═══════════════════════════════
+   TABLET BREAKPOINT 769-1024px
+   ═══════════════════════════════ */
+@media (min-width: 769px) and (max-width: 1100px) {
+    .analyzer-layout {
+        gap: 1rem;
+    }
+
+    .board-column {
+        height: auto;
+    }
+
+    .game-sidebar {
+        width: 250px;
+    }
+}
+
+/* ═══════════════════════════════
+   SIDEBAR PANEL VISIBILITY
+   ═══════════════════════════════ */
+
+/* Desktop: show all desktop panels, hide mobile-tab panels */
+@media (min-width: 769px) {
+    /* The tab-gated panels (moves/coach/engine) are shown unconditionally on desktop */
+    .game-sidebar > div[style*="display: none"] {
+        display: flex !important;
+    }
+    .desktop-coach-engine {
+        display: flex !important;
+    }
+    .desktop-practice-btn {
+        display: flex !important;
+    }
+}
+
+/* Mobile: hide desktop coach+engine duplicate panel, show only tab-gated content */
+@media (max-width: 768px) {
+    .desktop-coach-engine {
+        display: none !important;
+    }
+    .desktop-practice-btn {
+        display: none !important;
+    }
+    /* Override inline display:none for the active tab panel */
+    .game-sidebar .desktop-always {
+        display: flex !important;
+    }
+}
+
+/* Fix viewport on mobile browsers (address bar) */
+@supports (height: 100dvh) {
+    @media (max-width: 768px) {
+        .app-root {
+            min-height: 100dvh;
+        }
+    }
 }
