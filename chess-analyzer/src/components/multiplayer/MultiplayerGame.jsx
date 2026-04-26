@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import AbsorptionEngine from '../../engine/variants/absorption/absorbtion';
+import AudioManager from '../../utils/audioManager';
 
 const STD_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const FILES = ['a','b','c','d','e','f','g','h'];
@@ -109,7 +110,7 @@ function PlayerBanner({ color, isMyTurn, myColor, theme }) {
 }
 
 // ── Main Game ─────────────────────────────────────────────────────────────────
-export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase, gameOverMessage, sendMove, resign, leaveGame, theme, wizardImages }) {
+export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase, gameOverMessage, sendMove, resign, leaveGame, theme, wizardImages, isMuted, lastMove }) {
     const t = theme?.global || {};
 
     // Local FEN — instant updates, no prop roundtrip
@@ -147,6 +148,26 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
         } catch {}
     }
 
+    // ── Sound Trigger ────────────────────────────────────────────────────────
+    useEffect(() => {
+        if (!lastMove) return;
+        try {
+            const { eng: c, caps: currentCaps } = getEngine(fenProp);
+            const isCheckmate = c.isCheckmate();
+            const isCheck = c.isKingInCheck ? c.isKingInCheck(c.turn()) : c.inCheck();
+            
+            // Calculate piece powers for absorption wizard audio
+            let powers = [lastMove.piece.toLowerCase()];
+            if (currentCaps[lastMove.to]) {
+                powers = [...new Set([...currentCaps[lastMove.to], lastMove.piece.toLowerCase()])];
+            }
+            
+            AudioManager.playMoveSound(lastMove, theme.pieces, isCheck, isCheckmate, isMuted, powers);
+        } catch (e) {
+            console.error('[MP] Sound error:', e);
+        }
+    }, [lastMove, fenProp]);
+
     // ── Core move execution (mirrors analyzer — try-catch around chess.js v1) ──
     const tryMove = (from, to) => {
         if (!from || !to || from === to) return false;
@@ -177,7 +198,7 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
             const serializedFen = `${newBaseFen}|${cMode}|${JSON.stringify(newCaps)}`;
             
             setLocalFen(serializedFen);
-            sendMove(serializedFen);
+            sendMove(serializedFen, move);
             setMoveFrom('');
             return true;
         } catch {
@@ -238,7 +259,7 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
                 const newCaps = isAbs ? c.absorptionState.capabilities : {};
                 const serializedFen = `${newBaseFen}|${cMode}|${JSON.stringify(newCaps)}`;
                 setLocalFen(serializedFen); 
-                sendMove(serializedFen); 
+                sendMove(serializedFen, move); 
             }
         } catch {}
         setPromotionMove(null);

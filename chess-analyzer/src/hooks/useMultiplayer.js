@@ -55,6 +55,7 @@ export function useMultiplayer() {
     const [opponentConnected, setOpponentConnected] = useState(false);
     const [error, setError]                   = useState(null);
     const [isLoading, setIsLoading]           = useState(false);
+    const [lastMove, setLastMove]             = useState(null);
 
     const channelRef         = useRef(null);
     const pollTimerRef       = useRef(null);
@@ -96,6 +97,7 @@ export function useMultiplayer() {
             .on('broadcast', { event: 'move' }, ({ payload }) => {
                 console.log('[MP] Received move:', payload.fen);
                 setFen(payload.fen);
+                if (payload.move) setLastMove(payload.move);
                 const over = checkGameOver(payload.fen);
                 if (over) { setGameOverMessage(over); setPhase('finished'); }
             })
@@ -307,15 +309,17 @@ export function useMultiplayer() {
     }, [subscribeToChannel]);
 
     // ── SEND MOVE ────────────────────────────────────────────────────────────
-    const sendMove = useCallback(async (newFen) => {
+    const sendMove = useCallback(async (newFen, moveObj) => {
         if (!channelRef.current) return;
         console.log('[MP] Sending move:', newFen);
+
+        setLastMove(moveObj || null);
 
         // Broadcast to opponent instantly
         channelRef.current.send({
             type: 'broadcast',
             event: 'move',
-            payload: { fen: newFen }
+            payload: { fen: newFen, move: moveObj }
         });
 
         // Persist to DB (fire-and-forget; non-blocking)
@@ -381,5 +385,6 @@ export function useMultiplayer() {
         sendMove,
         resign,
         leaveGame,
+        lastMove
     };
 }

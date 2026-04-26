@@ -86,7 +86,7 @@ export default function App() {
     const [isFetching, setIsFetching] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
 
-    const { phase, myColor, gameCode, fen: mpFen, setFen: setMpFen, gameOverMessage, opponentConnected, error: mpError, isLoading: mpLoading, createGame, joinGame, sendMove, resign, leaveGame } = useMultiplayer();
+    const { phase, myColor, gameCode, fen: mpFen, setFen: setMpFen, gameOverMessage, opponentConnected, error: mpError, isLoading: mpLoading, createGame, joinGame, sendMove, resign, leaveGame, lastMove } = useMultiplayer();
 
     const handleFetch = async (e) => {
         e.preventDefault();
@@ -165,7 +165,7 @@ export default function App() {
             </header>
 
             {appMode === 'multiplayer' && phase === 'lobby' && <MultiplayerLobby onCreateGame={createGame} onJoinGame={joinGame} isLoading={mpLoading} error={mpError} theme={activeTheme} />}
-            {appMode === 'multiplayer' && phase !== 'lobby' && <MultiplayerGame fen={mpFen} setFen={setMpFen} myColor={myColor} gameCode={gameCode} phase={phase} gameOverMessage={gameOverMessage} opponentConnected={opponentConnected} sendMove={sendMove} resign={resign} leaveGame={leaveGame} theme={activeTheme} wizardImages={activeTheme.pieces === 'wizard' ? WIZARD_IMAGES : null} />}
+            {appMode === 'multiplayer' && phase !== 'lobby' && <MultiplayerGame fen={mpFen} setFen={setMpFen} myColor={myColor} gameCode={gameCode} phase={phase} gameOverMessage={gameOverMessage} opponentConnected={opponentConnected} sendMove={sendMove} resign={resign} leaveGame={leaveGame} theme={activeTheme} wizardImages={activeTheme.pieces === 'wizard' ? WIZARD_IMAGES : null} isMuted={isMuted} lastMove={lastMove} />}
 
             {/* ── THE ISOLATED LOCAL GAME ENGINE ── */}
             {appMode === 'analyzer' && (
