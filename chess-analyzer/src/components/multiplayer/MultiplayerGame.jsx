@@ -162,7 +162,7 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
                 powers = [...new Set([...currentCaps[lastMove.to], lastMove.piece.toLowerCase()])];
             }
             
-            AudioManager.playMoveSound(lastMove, theme.pieces, isCheck, isCheckmate, isMuted, powers);
+            AudioManager.playMoveSound(lastMove, theme.pieces, isCheck, isCheckmate, isMuted, lastMove.capturedPiece);
         } catch (e) {
             console.error('[MP] Sound error:', e);
         }
@@ -175,7 +175,10 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
             const { eng: c, isAbsorption: isAbs, mode: cMode, caps } = getEngine(localFen);
             
             let isProm = false;
-            const capturedPowers = isAbs ? (caps[to] || []) : [];
+            const capturedPiece = c.get(to) || null;
+            if (capturedPiece && isAbs) {
+                capturedPiece.powers = caps[to] || [];
+            }
 
             if (isAbs) {
                 const p = c.get(from);
@@ -186,7 +189,7 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
 
             if (isProm) {
                 c.move({ from, to, promotion: 'q' }); // validate it works
-                setPromotionMove({ from, to, color: c.turn(), capturedPowers });
+                setPromotionMove({ from, to, color: c.turn(), capturedPiece });
                 setMoveFrom('');
                 return true;
             }
@@ -200,7 +203,7 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
             const serializedFen = `${newBaseFen}|${cMode}|${JSON.stringify(newCaps)}`;
             
             setLocalFen(serializedFen);
-            sendMove(serializedFen, move, capturedPowers);
+            sendMove(serializedFen, move, capturedPiece);
             setMoveFrom('');
             return true;
         } catch {
@@ -261,7 +264,7 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
                 const newCaps = isAbs ? c.absorptionState.capabilities : {};
                 const serializedFen = `${newBaseFen}|${cMode}|${JSON.stringify(newCaps)}`;
                 setLocalFen(serializedFen); 
-                sendMove(serializedFen, move, promotionMove.capturedPowers || []); 
+                sendMove(serializedFen, move, promotionMove.capturedPiece || null); 
             }
         } catch {}
         setPromotionMove(null);
@@ -297,39 +300,42 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
         const buildPieceComponent = (basePiece) => ({ square }) => {
             let src = wizardImages[basePiece];
             if (mode === 'absorption' && absorptionCapabilities[square]) {
-                const caps = absorptionCapabilities[square];
+                const caps = absorptionCapabilities[square] || [];
                 const color = basePiece[0]; // 'w' or 'b'
-                const type = basePiece[1]; // 'P', 'N', 'B', 'R', 'Q', 'K'
+                const trueBase = basePiece[1]; // 'P', 'N', 'B', 'R', 'Q', 'K'
                 
-                const allTypes = [...caps, type.toLowerCase()];
-                const hasP = allTypes.includes('p');
-                const hasR = allTypes.includes('r');
-                const hasB = allTypes.includes('b');
-                const hasN = allTypes.includes('n');
-                const hasQ = allTypes.includes('q');
-                
-                const effectiveR = hasR || hasQ;
-                const effectiveB = hasB || hasQ;
-                const effectiveN = hasN;
-                
-                let keySuffix = null;
-                if (effectiveR && effectiveB && effectiveN) {
-                    keySuffix = 'Q_N';
-                } else if (effectiveR && effectiveB) {
-                    keySuffix = 'Q';
-                } else if (hasP) {
-                    if (effectiveR && effectiveN) keySuffix = 'P_N_R';
-                    else if (effectiveB && effectiveN) keySuffix = 'P_B_N';
-                    else if (effectiveR) keySuffix = 'P_R';
-                    else if (effectiveB) keySuffix = 'P_B';
-                    else if (effectiveN) keySuffix = 'P_N';
-                } else {
-                    if (effectiveR && effectiveN) keySuffix = 'R_N';
-                    else if (effectiveB && effectiveN) keySuffix = 'B_N';
+                let allPowers = Array.from(new Set([...caps, trueBase.toLowerCase()]));
+
+                // 2. Auto-Queen Rule
+                if (allPowers.includes('r') && allPowers.includes('b')) {
+                    allPowers = allPowers.filter(p => p !== 'r' && p !== 'b');
+                    if (!allPowers.includes('q')) allPowers.push('q');
                 }
 
-                if (keySuffix) {
-                    src = wizardImages[`${color}${keySuffix}`] || src;
+                let visualBase = trueBase;
+
+                // 3 & 4. Alias Rules: Queen dominates all. Knight submits to Majors.
+                if (allPowers.includes('q')) {
+                    visualBase = 'Q';
+                    // Queen subsumes Rook and Bishop
+                    allPowers = allPowers.filter(p => p !== 'r' && p !== 'b');
+                } else if (trueBase === 'N') {
+                    if (allPowers.includes('r')) visualBase = 'R';
+                    else if (allPowers.includes('b')) visualBase = 'B';
+                }
+
+                // Gather remaining powers, exclude the visual base, sort alphabetically
+                let remainingPowers = allPowers.filter(p => p !== visualBase.toLowerCase());
+                remainingPowers.sort();
+
+                // 1. Build the exact key: Base is always first letter
+                let idealKey = `${color}${visualBase}`;
+                if (remainingPowers.length > 0) {
+                    idealKey += `_${remainingPowers.map(p => p.toUpperCase()).join('_')}`;
+                }
+
+                if (wizardImages[idealKey]) {
+                    src = wizardImages[idealKey];
                 }
             }
             

@@ -1,42 +1,77 @@
 class AudioManager {
-    playMoveSound(moveDetails, themePieces, isCheck, isCheckmate, isMuted, piecePowers = []) {
+    playMoveSound(moveDetails, themePieces, isCheck, isCheckmate, isMuted, capturedPiece = null) {
         if (isMuted) return;
 
         const play = (path) => new Audio(path).play().catch(() => {});
 
-        // Fallback for piecePowers if not provided (like in standard mode)
-        if (piecePowers.length === 0 && moveDetails.piece) {
-            piecePowers = [moveDetails.piece.toLowerCase()];
+        // 1. Determine Move Geometry
+        let isDiagonal = false;
+        let isStraight = false;
+        
+        if (moveDetails && moveDetails.from && moveDetails.to) {
+            const fromFile = moveDetails.from.charCodeAt(0);
+            const fromRank = parseInt(moveDetails.from[1], 10);
+            const toFile = moveDetails.to.charCodeAt(0);
+            const toRank = parseInt(moveDetails.to[1], 10);
+            
+            const dx = Math.abs(toFile - fromFile);
+            const dy = Math.abs(toRank - fromRank);
+            
+            if (dx === dy && dx !== 0) {
+                isDiagonal = true;
+            } else if ((dx === 0 && dy !== 0) || (dy === 0 && dx !== 0)) {
+                isStraight = true;
+            }
         }
 
+        // 2. Wizard Theme Audio Rules
         if (themePieces === 'wizard') {
+            // Rule A: Checkmate
             if (isCheckmate) {
                 if (moveDetails.color === 'w') {
                     play('/sounds/wizard/expecto-patronum.mp3');
                 } else {
                     play('/sounds/wizard/avada-kedavra.mp3');
                 }
-            } else if (moveDetails.captured) {
-                // 1. Captured piece with queen moves (satisfying capture)
-                const capturedPowers = moveDetails.capturedPowers || [moveDetails.captured.toLowerCase()];
-                if (capturedPowers.includes('q')) {
+            } 
+            // Captures
+            else if (moveDetails.captured) {
+                let hasQueenPower = false;
+                
+                if (capturedPiece) {
+                    const baseType = capturedPiece.type ? capturedPiece.type.toLowerCase() : '';
+                    const absorbedPowers = capturedPiece.powers || [];
+                    const allPowers = [...absorbedPowers, baseType];
+                    if (allPowers.includes('q') || (allPowers.includes('r') && allPowers.includes('b'))) {
+                        hasQueenPower = true;
+                    }
+                } else if (moveDetails.captured.toLowerCase() === 'q') {
+                    hasQueenPower = true;
+                }
+
+                // Rule B: Captured a Queen/Queen-powered piece
+                if (hasQueenPower) {
                     play('/sounds/wizard/that-felt-good.mp3');
                 } 
-                // 2. Captured with diagonal move (Bishop power)
-                else if (moveDetails.usedPower === 'b' || (!moveDetails.usedPower && moveDetails.piece === 'b')) {
-                    play('/sounds/wizard/diagonally.mp3');
-                } 
-                // 3. Captured with rook move (Rook power)
-                else if (moveDetails.usedPower === 'r' || (!moveDetails.usedPower && moveDetails.piece === 'r')) {
+                // Rule C: Straight Capture
+                else if (isStraight) {
                     play('/sounds/wizard/bloody-hell.mp3');
                 } 
-                // Default capture
+                // Rule D: Diagonal Capture
+                else if (isDiagonal) {
+                    play('/sounds/wizard/diagonally.mp3');
+                } 
+                // Rule E: Other Captures (e.g. Knight)
                 else {
                     play('/sounds/wizard/capture.mp3');
                 }
-            } else if (isCheck) {
+            } 
+            // Rule F: Check
+            else if (isCheck) {
                 play('/sounds/wizard/check.mp3');
-            } else {
+            } 
+            // Rule G: Normal Move
+            else {
                 play('/sounds/wizard/move.mp3');
             }
         } else {

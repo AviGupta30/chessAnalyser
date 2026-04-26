@@ -223,46 +223,36 @@ export default function AnalyzerGame({
                 
                 let allPowers = Array.from(new Set([...caps, trueBase.toLowerCase()]));
 
-                // Auto-Evolution & Redundancy (The Queen Rule)
-                if (allPowers.includes('q') || (allPowers.includes('r') && allPowers.includes('b'))) {
+                // 2. Auto-Queen Rule
+                if (allPowers.includes('r') && allPowers.includes('b')) {
                     allPowers = allPowers.filter(p => p !== 'r' && p !== 'b');
                     if (!allPowers.includes('q')) allPowers.push('q');
                 }
 
                 let visualBase = trueBase;
 
-                // The Alias Rule: Q dominates all bases. N submits to Majors.
+                // 3 & 4. Alias Rules: Queen dominates all. Knight submits to Majors.
                 if (allPowers.includes('q')) {
                     visualBase = 'Q';
+                    // Queen subsumes Rook and Bishop
+                    allPowers = allPowers.filter(p => p !== 'r' && p !== 'b');
                 } else if (trueBase === 'N') {
                     if (allPowers.includes('r')) visualBase = 'R';
                     else if (allPowers.includes('b')) visualBase = 'B';
                 }
 
+                // Gather remaining powers, exclude the visual base, sort alphabetically
                 let remainingPowers = allPowers.filter(p => p !== visualBase.toLowerCase());
                 remainingPowers.sort();
 
-                const buildKey = (powers) => {
-                    if (powers.length === 0) return `${color}${visualBase}`;
-                    const suffix = powers.map(p => p.toUpperCase()).join('_');
-                    return `${color}${visualBase}_${suffix}`;
-                };
+                // 1. Build the exact key: Base is always first letter
+                let idealKey = `${color}${visualBase}`;
+                if (remainingPowers.length > 0) {
+                    idealKey += `_${remainingPowers.map(p => p.toUpperCase()).join('_')}`;
+                }
 
-                let idealKey = buildKey(remainingPowers);
-                
                 if (wizardImages[idealKey]) {
                     src = wizardImages[idealKey];
-                } else if (remainingPowers.length > 1) {
-                    // Graceful fallback strip last power
-                    const fallbackPowers = remainingPowers.slice(0, -1);
-                    const fallbackKey = buildKey(fallbackPowers);
-                    if (wizardImages[fallbackKey]) {
-                        src = wizardImages[fallbackKey];
-                    } else {
-                        src = wizardImages[`${color}${trueBase}`] || src;
-                    }
-                } else {
-                    src = wizardImages[`${color}${trueBase}`] || src;
                 }
             }
             
@@ -560,13 +550,21 @@ export default function AnalyzerGame({
                     flashInvalidMove(sourceSquare, targetSquare);
                     return false;
                 }
-                setPromotionMove({ from: sourceSquare, to: targetSquare, color: temp.turn() });
+                const temp2 = getActiveEngine();
+                const capturedPiece = temp2.get(targetSquare) || null;
+                if (capturedPiece && gameMode === 'absorption') {
+                    capturedPiece.powers = temp2.absorptionState.capabilities[targetSquare] || [];
+                }
+                setPromotionMove({ from: sourceSquare, to: targetSquare, color: temp.turn(), capturedPiece });
                 return true;
             }
 
             // Re-sync before actually executing so we work on a clean state
             const temp2 = getActiveEngine();
-            const capturedPowers = gameMode === 'absorption' ? (temp2.absorptionState.capabilities[targetSquare] || []) : [];
+            const capturedPiece = temp2.get(targetSquare) || null;
+            if (capturedPiece && gameMode === 'absorption') {
+                capturedPiece.powers = temp2.absorptionState.capabilities[targetSquare] || [];
+            }
             const move = temp2.move({ from: sourceSquare, to: targetSquare });
 
             if (!move) {
@@ -580,7 +578,7 @@ export default function AnalyzerGame({
                 : {};
 
             const newHistory = history.slice(0, currentMoveIndex + 1);
-            newHistory.push({ ...move, fen: newFen, capabilities: currentCaps, capturedPowers });
+            newHistory.push({ ...move, fen: newFen, capabilities: currentCaps, capturedPiece });
 
             setHistory(newHistory);
             setCurrentMoveIndex(newHistory.length - 1);
@@ -592,7 +590,7 @@ export default function AnalyzerGame({
             const isCheckmate = gameMode === 'absorption' ? temp2.isCheckmate() : temp2.isCheckmate();
             const isCheck = gameMode === 'absorption' ? temp2.isKingInCheck(temp2.turn()) : temp2.inCheck();
             const piecePowers = gameMode === 'absorption' ? [...(currentCaps[move.to] || []), move.piece.toLowerCase()] : [move.piece.toLowerCase()];
-            AudioManager.playMoveSound({ ...move, capturedPowers }, activeTheme.pieces, isCheck, isCheckmate, isMuted, piecePowers);
+            AudioManager.playMoveSound(move, activeTheme.pieces, isCheck, isCheckmate, isMuted, capturedPiece);
 
             return true;
         } catch (e) {
@@ -681,8 +679,7 @@ export default function AnalyzerGame({
 
             const isCheckmate = gameMode === 'absorption' ? temp.isCheckmate() : temp.isCheckmate();
             const isCheck = gameMode === 'absorption' ? temp.isKingInCheck(temp.turn()) : temp.inCheck();
-            const piecePowers = gameMode === 'absorption' ? [...(currentCaps[move.to] || []), move.piece.toLowerCase()] : [move.piece.toLowerCase()];
-            AudioManager.playMoveSound(move, activeTheme.pieces, isCheck, isCheckmate, isMuted, piecePowers);
+            AudioManager.playMoveSound(move, activeTheme.pieces, isCheck, isCheckmate, isMuted, promotionMove?.capturedPiece || null);
         }
         setPromotionMove(null);
     };
