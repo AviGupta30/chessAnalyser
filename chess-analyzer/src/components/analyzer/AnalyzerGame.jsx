@@ -256,15 +256,38 @@ export default function AnalyzerGame({
                 }
             }
             
+            // Calculate dynamic z-index based on rank and board orientation
+            const rank = parseInt(square[1], 10);
+            const zIndex = boardOrientation === 'black' ? rank : (10 - rank);
+
+            const isPawn = basePiece[1] === 'P';
+            const imgHeight = isPawn ? '100%' : '115%';
+            const imgBottom = isPawn ? '0%' : '5%';
+
             return (
                 <div style={{ 
                     width: '100%', 
                     aspectRatio: '1 / 1', 
-                    backgroundImage: `url(${src})`, 
-                    backgroundSize: 'contain', 
-                    backgroundRepeat: 'no-repeat', 
-                    backgroundPosition: 'center' 
-                }} />
+                    position: 'relative',
+                    zIndex: zIndex,
+                    overflow: 'visible'
+                }}>
+                    <img 
+                        src={src} 
+                        alt={basePiece}
+                        style={{
+                            position: 'absolute',
+                            bottom: imgBottom,
+                            left: '0',
+                            width: '100%',
+                            height: imgHeight,
+                            objectFit: 'contain',
+                            filter: 'drop-shadow(2px 4px 5px rgba(0,0,0,0.5))',
+                            pointerEvents: 'none',
+                            display: 'block'
+                        }}
+                    />
+                </div>
             );
         };
 
@@ -274,7 +297,7 @@ export default function AnalyzerGame({
             bP: buildPieceComponent('bP'), bN: buildPieceComponent('bN'), bB: buildPieceComponent('bB'),
             bR: buildPieceComponent('bR'), bQ: buildPieceComponent('bQ'), bK: buildPieceComponent('bK'),
         };
-    }, [wizardImages, gameMode, absorptionCapabilities]);
+    }, [wizardImages, gameMode, absorptionCapabilities, boardOrientation]);
 
     const gameStatus = useMemo(() => {
         if (gameMode === 'absorption') {
@@ -819,7 +842,8 @@ export default function AnalyzerGame({
             : isPracticeMode
                 ? (new Chess(displayFen).turn() === userPracticeColor)
                 : true,
-        boardStyle: { borderRadius: '4px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', width: '100%' },
+        boardStyle: { borderRadius: '4px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', width: '100%', overflow: 'visible' },
+        customBoardStyle: { borderRadius: '4px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', overflow: 'visible' },
         darkSquareStyle: { backgroundColor: activeTheme.board.dark },
         lightSquareStyle: { backgroundColor: activeTheme.board.light },
         squareStyles: dynamicSquareStyles,
@@ -849,7 +873,7 @@ export default function AnalyzerGame({
                 <div className="eval-bar-wrapper">
                     <EvalBar result={engineState.result} status={gameMode === 'absorption' ? 'disabled' : engineState.status} />
                 </div>
-                <div className="board-wrapper" style={{ position: 'relative', width: boardWidth, flexShrink: 0 }}>
+                <div className="board-wrapper" style={{ position: 'relative', width: boardWidth, flexShrink: 0, marginTop: '20px' }}>
 
                     {gameStatus && (
                         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', zIndex: 10, display: 'flex', justifyContent: 'center', alignItems: 'center', pointerEvents: 'none', borderRadius: '4px' }}>

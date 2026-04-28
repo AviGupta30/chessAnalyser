@@ -338,16 +338,38 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
                     src = wizardImages[idealKey];
                 }
             }
-            
+            // Calculate dynamic z-index based on rank and board orientation
+            const rank = parseInt(square[1], 10);
+            const zIndex = myColor === 'black' ? rank : (10 - rank);
+
+            const isPawn = basePiece[1] === 'P';
+            const imgHeight = isPawn ? '100%' : '115%';
+            const imgBottom = isPawn ? '0%' : '5%';
+
             return (
                 <div style={{ 
                     width: '100%', 
                     aspectRatio: '1 / 1', 
-                    backgroundImage: `url(${src})`, 
-                    backgroundSize: 'contain', 
-                    backgroundRepeat: 'no-repeat', 
-                    backgroundPosition: 'center' 
-                }} />
+                    position: 'relative',
+                    zIndex: zIndex,
+                    overflow: 'visible'
+                }}>
+                    <img 
+                        src={src} 
+                        alt={basePiece}
+                        style={{
+                            position: 'absolute',
+                            bottom: imgBottom,
+                            left: '0',
+                            width: '100%',
+                            height: imgHeight,
+                            objectFit: 'contain',
+                            filter: 'drop-shadow(2px 4px 5px rgba(0,0,0,0.5))',
+                            pointerEvents: 'none',
+                            display: 'block'
+                        }}
+                    />
+                </div>
             );
         };
 
@@ -357,7 +379,7 @@ export default function MultiplayerGame({ fen: fenProp, myColor, gameCode, phase
             bP: buildPieceComponent('bP'), bN: buildPieceComponent('bN'), bB: buildPieceComponent('bB'),
             bR: buildPieceComponent('bR'), bQ: buildPieceComponent('bQ'), bK: buildPieceComponent('bK'),
         };
-    }, [wizardImages, mode, absorptionCapabilities]);
+    }, [wizardImages, mode, absorptionCapabilities, myColor]);
 
     // ── Board options (plain object, mirrors analyzer) ─────────────────────────
     const boardOptions = {
